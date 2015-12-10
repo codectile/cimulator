@@ -15,7 +15,8 @@ subject to the following restrictions:
 
 #pragma library	cimulator
 
-#define	CR_MAX_VOLUME	1000	//set it according to your own need, the max limit is 30000
+#define	CR_MAX_DYNAMIC	1000	//set it according to your own need, the max limit is 30000
+#define	CR_MAX_STATIC	1000	//set it according to your own need, the max limit is 30000
 
 
 #define ACTIVE_TAG	1 //property by which the collision volume can be activated again
@@ -26,6 +27,77 @@ subject to the following restrictions:
 
 static cr_newtime, cr_oldtime;
 
+
+/* Natives List:
+ 
+ * Static Object Natives
+
+		CR_CreateStaticCol
+		CR_RemoveStaticCol
+		CR_GetStaticColModel
+		CR_GetStaticColObject
+		CR_SetStaticColShape
+		CR_SetStaticOrigin
+		CR_GetStaticOrigin
+		CR_SetStaticRotation
+		CR_GetStaticRotation
+		CR_IsStaticIdxAvailable
+		CR_StaticContactTest
+
+  * Dynamic Object Natives
+
+		CR_CreateDynamicCol
+		CR_RemoveDynamicCol
+		CR_GetDynamicColModel
+		CR_GetDynamicColObject
+		CR_SetDynamicColShape
+		CR_SetDynamicOrigin
+		CR_GetDynamicOrigin
+		CR_SetDynamicRotation
+		CR_GetDynamicRotation
+		CR_IsDynamicIdxAvailable
+		CR_DynamicContactTest
+		CR_SetLinearVelocity
+		CR_GetLinearVelocity
+		CR_SetAngularVelocity
+		CR_GetAngularVelocity
+		CR_SetTorque
+		CR_SetFriction
+		CR_GetFriction
+		CR_SetRestitution
+		CR_GetRestitution
+		CR_IsActive
+		CR_Activate
+		CR_IsMoving
+		CR_SetMass
+		CR_GetMass
+		CR_GetTransform
+		CR_GetContactPoints
+
+  * World Natives
+		
+		CR_EnableSimulation
+		CR_DisableSimulation
+		CR_Load
+		CR_RemoveColMap
+		CR_SetWorldGravity
+		CR_GetWorldGravity
+		CR_RayTraceNormal
+		CR_RayTrace
+		CR_RayTraceEx
+		CR_RayTraceReflection
+		CR_GetBoundingSphere
+		CR_GetAABB
+		CR_GetNumCollisionObject
+		CR_GetNumChildShapes
+		CR_Simulator
+		CR_IsCompound
+		CR_Wait
+		CR_CharacterContactTest
+		CR_ContactTestEx
+		CR_FreeMemory
+		CR_GetTimeMilliseconds
+*/
 
 /*
  * stops the simulation
@@ -85,20 +157,36 @@ native CR_RayTraceReflection(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, F
  native CR_FreeMemory();
 
 /*
- * removes collision volume from the world
+ * removes dynamic collision volume from the world
  * used internally
  */
- native CR_RemoveColVolume(index);
+ native CR_RemoveDynamicCol(index);
+
+ /*
+ * removes static collision volume from the world
+ * used internally
+ */
+ native CR_RemoveStaticCol(index);
 
 /*
- * creates a collision volume, set inertia  = 1 to use inertia, for tags look to their definitions
+ * creates a dynamic collision volume, set inertia  = 1 to use inertia, for tags look to their definitions
  */
-native CR_CreateColVolume(objectid, index, modelid, Float:mass, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz, inertia = 0, tag = ACTIVE_TAG);
+native CR_CreateDynamicCol(index, objectid, modelid, Float:mass, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, tag = ACTIVE_TAG);
 
 /*
- * returns modelid of the collision volume
+ * creates a static collision volume
  */
- native CR_GetColVolumeModel(index);
+native CR_CreateStaticCol(index, objectid, modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
+
+/*
+ * returns modelid of the dynamic collision volume
+ */
+ native CR_GetDynamicColModel(index);
+
+ /*
+  * returns modelid of the static collision volume
+  */
+ native CR_GetStaticColModel(index);
 
 /*
  * sets the mass of the collision volume
@@ -112,9 +200,15 @@ native CR_CreateColVolume(objectid, index, modelid, Float:mass, Float:x, Float:y
 
 /*
  * the most useful function yet, this function changes the collision shape of collision volume, in real-time.
- * The collision volume change its collision shaoe to that of the specified modelid.
+ * The dynamic collision volume change its collision shape to that of the specified modelid.
  */
-native CR_SetCollisionShape(index, modelid);
+native CR_SetDynamicColShape(index, modelid);
+
+/*
+ * the most useful function yet, this function changes the collision shape of collision volume, in real-time.
+ * The static collision volume change its collision shape to that of the specified modelid.
+ */
+native CR_SetStaticColShape(index, modelid);
 
 /*
  * passes the offset and radius of the model's bounding sphere by reference
@@ -132,24 +226,44 @@ native CR_GetAABB(modelid, &Float:minx, &Float:miny, &Float:minz, &Float:maxx, &
 native CR_GetTransform(index, &Float:x, &Float:y, &Float:z, &Float:rx, &Float:ry, &Float:rz);
 
 /*
- * set the position of the collision volume
+ * set the position of the dynamic collision volume
  */
-native CR_SetOrigin(index, Float:x, Float:y, Float:z);
+native CR_SetDynamicOrigin(index, Float:x, Float:y, Float:z);
 
 /*
- * returns the position of the collision volume
+ * set the position of the static collision volume
  */
-native CR_GetOrigin(index, &Float:x, &Float:y, &Float:z);
+native CR_SetStaticOrigin(index, Float:x, Float:y, Float:z);
 
 /*
- * sets the rotation of collision colume
+ * returns the position of the dynamic collision volume
  */
-native CR_SetRotation(index, Float:yaw, Float:pitch, Float:roll);
+native CR_GetDynamicOrigin(index, &Float:x, &Float:y, &Float:z);
 
 /*
- * returns the rotation of collision colume
+ * returns the position of the static collision volume
  */
-native CR_GetRotation(index, &Float:yaw, &Float:pitch, &Float:roll);
+native CR_GetStaticOrigin(index, &Float:x, &Float:y, &Float:z);
+
+/*
+ * sets the rotation of dynamic collision colume
+ */
+native CR_SetDynamicRotation(index, Float:yaw, Float:pitch, Float:roll);
+
+/*
+ * sets the rotation of static collision colume
+ */
+native CR_SetStaticRotation(index, Float:yaw, Float:pitch, Float:roll);
+
+/*
+ * returns the rotation of dynamic collision colume
+ */
+native CR_GetDynamicRotation(index, &Float:yaw, &Float:pitch, &Float:roll);
+
+/*
+ * returns the rotation of static collision colume
+ */
+native CR_GetStaticRotation(index, &Float:yaw, &Float:pitch, &Float:roll);
 
 /*
  * sets the linear velocity of the collision volume
@@ -197,9 +311,14 @@ native CR_SetRestitution(index, Float:rest);
 native Float:CR_GetRestitution(index);
 
 /*
- * checks whether an index is available or not
+ * checks whether a dynamic index is available or not
  */
- native CR_IsIndexAvailable(index);
+ native CR_IsDynamicIdxAvailable(index);
+
+ /*
+ * checks whether a static index is available or not
+ */
+ native CR_IsStaticIdxAvailable(index);
 
 /*
  * checks whether is the collision volume is active or not
@@ -208,10 +327,10 @@ native Float:CR_GetRestitution(index);
 native CR_IsActive(index);
 
 /*
- * checks whether is the collision volume is static or dynamic
- * returns 1 if true else 0.
+ * checks whether a dynamic collision volume is moving or not
+ * returns 1 if moving else 0.
  */
-native CR_IsStatic(index);
+native CR_IsMoving(index);
 
 /*
  * activates the collision volume
@@ -256,12 +375,17 @@ native CR_CreateGhost(ghostIndex, modelid, Float:x, Float:y, Float:z, Float:yaw,
 native CR_GetNumOverlappingObjects(ghostIndex);
 
 /*
- * checks whether a collision volume is colliding or not
+ * checks whether a dynamic collision volume is colliding or not
  */
-native CR_ContactTest(index);
+native CR_DynamicContactTest(index);
 
 /*
- * predicts whether a modelid will be colliding at a specific position or not
+ * checks whether a static collision volume is colliding or not
+ */
+native CR_StaticContactTest(index);
+
+/*
+ * predicts whether a modelid will be colliding at a specific orientation or not
  */
 native CR_ContactTestEx(modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
 
@@ -284,18 +408,23 @@ native Float:CR_GetContactPoints(index, &Float:x1, &Float:y1, &Float:z1, &Float:
 native CR_GetTimeMilliseconds();
 
  /*
-  * returns the objectid with respect to the index
+  * returns the objectid with respect to the dynamic index
   */
-native CR_GetColVolumeObjectID(index);
+native CR_GetDynamicColObject(index);
+
+/*
+  * returns the objectid with respect to the dynamic index
+  */
+native CR_GetStaticColObject(index);
 
 /*
  * sets the tansform of the collision volume and the object passed
  */
 stock CR_SetTransform(index, Float:x, Float:y, Float:z, Float:rotx, Float:roty, Float:rotz)
 {
-	new ob = CR_GetColVolumeObjectID(index);
-	CR_SetOrigin(index, x, y, z);
-	CR_SetRotation(index, rotx, roty, rotz);
+	new ob = CR_GetDynamicColObject(index);
+	CR_SetDynamicOrigin(index, x, y, z);
+	CR_SetDynamicRotation(index, rotx, roty, rotz);
 	SetDynamicObjectPos(ob, x, y, z);
 	SetDynamicObjectRot(ob, rotx, roty, rotz);
 }
@@ -305,8 +434,8 @@ stock CR_SetTransform(index, Float:x, Float:y, Float:z, Float:rotx, Float:roty, 
  */
 stock CR_UpdateTransform(index)
 {
-	new ob = CR_GetColVolumeObjectID(index);
-	if(IsValidDynamicObject(ob) && CR_IsActive(index) && !CR_IsStatic(index))
+	new ob = CR_GetDynamicColObject(index);
+	if(IsValidDynamicObject(ob) && CR_IsActive(index) && CR_IsMoving(index))
 	{
 		new Float:x, Float:y, Float:z, Float:rotx, Float:roty, Float:rotz;
 		CR_GetTransform(index, x, y, z, rotx, roty, rotz);
@@ -321,7 +450,7 @@ stock CR_UpdateTransform(index)
  */
 stock CR_ProcessItems()
 {
-	for(new i = 0; i < CR_MAX_VOLUME; i++)
+	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
 		CR_UpdateTransform(i);
 }
 
@@ -330,12 +459,21 @@ stock CR_ProcessItems()
  */
 stock CR_DestroyAllColVolumes()
 {
-	for(new i = 0; i < CR_MAX_VOLUME; i++)
+	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
 	{
-	    if(IsValidDynamicObject(CR_GetColVolumeObjectID(i)))
+	    if(IsValidDynamicObject(CR_GetDynamicColObject(i)))
 		{
-			DestroyDynamicObject(CR_GetColVolumeObjectID(i));
-			CR_RemoveColVolume(i);
+			DestroyDynamicObject(CR_GetDynamicColObject(i));
+			CR_RemoveDynamicCol(i);
+		}
+	}
+
+	for(new i = 0; i < CR_MAX_STATIC; i++)
+	{
+	    if(IsValidDynamicObject(CR_GetStaticColObject(i)))
+		{
+			DestroyDynamicObject(CR_GetStaticColObject(i));
+			CR_RemoveStaticCol(i);
 		}
 	}
 }
@@ -343,13 +481,26 @@ stock CR_DestroyAllColVolumes()
 /*
  * deletes dynamic objects along with collision volumes
  */
-stock CR_DestroyColVolume(index)
+stock CR_DestroyDynamicCol(index)
 {
-	new ob = CR_GetColVolumeObjectID(index);
+	new ob = CR_GetDynamicColObject(index);
 	if(IsValidDynamicObject(ob))
 	{
 		DestroyDynamicObject(ob);
-		CR_RemoveColVolume(index);
+		CR_RemoveDynamicCol(index);
+	}
+}
+
+/*
+ * deletes static objects along with collision volumes
+ */
+stock CR_DestroyStaticCol(index)
+{
+	new ob = CR_GetStaticColObject(index);
+	if(IsValidDynamicObject(ob))
+	{
+		DestroyDynamicObject(ob);
+		CR_RemoveStaticCol(index);
 	}
 }
 
@@ -358,9 +509,12 @@ stock CR_DestroyColVolume(index)
  */
 stock CR_FlushMemory()
 {
-	for(new i = 0; i < CR_MAX_VOLUME; i++)
-		if(IsValidDynamicObject(CR_GetColVolumeObjectID(i)))
-			DestroyDynamicObject(CR_GetColVolumeObjectID(i));
+	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
+		if(IsValidDynamicObject(CR_GetDynamicColObject(i)))
+			DestroyDynamicObject(CR_GetDynamicColObject(i));
+	for(new i = 0; i < CR_MAX_STATIC; i++)
+		if(IsValidDynamicObject(CR_GetStaticColObject(i)))
+			DestroyDynamicObject(CR_GetStaticColObject(i));
 	CR_FreeMemory();
 }
 
