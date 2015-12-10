@@ -37,13 +37,15 @@ struct CustomCollisionSensor : public btCollisionWorld::ContactResultCallback
 	}
 };
 
-void cr_readCadb();
+int cr_readCadb();
 void cr_createColObject();
 void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldrest);
-btRigidBody* cr_addColBody(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotatation, int inrt, int state);
-void cr_removeColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
+btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotatation);
+btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int state);
+void cr_removeDynamicCol(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
+void cr_removeStaticCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* colObj);
 void cr_deleteColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
-void cr_setCollisionShape(btRigidBody* rigidBody, int modelid);
+void cr_setCollisionShape(btCollisionObject* rigidBody, int modelid);
 void cr_getBoundingSphere(int modelid, btVector3& center, btScalar &radius);
 void cr_getAABB(int modelid, btVector3& min, btVector3& max);
 int cr_isCompound(int modelid);
