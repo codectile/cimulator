@@ -14,6 +14,7 @@ subject to the following restrictions:
 */
 
 #include "CNatives.h"
+#include <exception>
 
 // enables simulation
 cell AMX_NATIVE_CALL CR_EnableSimulation(AMX* amx, cell* params)
@@ -145,49 +146,97 @@ cell AMX_NATIVE_CALL CR_RayTraceReflection(AMX* amx, cell* params)
 	return 0;
 }
 
-// creates collision volume
-cell AMX_NATIVE_CALL CR_CreateColVolume(AMX* amx, cell* params)
+// creates dynamic collision volume
+cell AMX_NATIVE_CALL CR_CreateDynamicCol(AMX* amx, cell* params)
 {
-	rigidBody[params[1]] = new colObject(params[1], params[2], params[3], cr_addColBody(dynamicsWorld, params[3], amx_ctof(params[4]), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])), btVector3(amx_ctof(params[8]), amx_ctof(params[9]), amx_ctof(params[10])), params[11], params[12]));
-	rigidBody[params[1]]->col->setUserIndex(params[3]); //set the modelid
-	//col_cache.push_back(rigidBody[params[1]]); //push the object to the vector for deletion
-	index_availability[params[1]] = 0; //make it unavailable
+	if (index_availability_dynamic[params[1]])
+	{
+		rigidBody[params[1]] = new DynamicObject(params[1], params[2], params[3], cr_addDynamicCollision(dynamicsWorld, params[3], amx_ctof(params[4]), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])), btVector3(amx_ctof(params[8]), amx_ctof(params[9]), amx_ctof(params[10])), params[11]));
+		rigidBody[params[1]]->col->setUserIndex(params[3]); //set the modelid
+		//col_cache.push_back(rigidBody[params[1]]); //push the object to the vector for deletion
+		index_availability_dynamic[params[1]] = 0; //make it unavailable
+	}
+	else
+		logprintf("cimulator::dynamic collision object is already in use");
 	return 1;
 }
 
-// removes the collision volume from the world
-cell AMX_NATIVE_CALL CR_RemoveColVolume(AMX* amx, cell* params)
+// creates static collision volume
+cell AMX_NATIVE_CALL CR_CreateStaticCol(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (index_availability_static[params[1]])
 	{
-		cr_removeColBody(dynamicsWorld, rigidBody[params[1]]->col); //remove the body from the world
-		index_availability[params[1]] = 1; //make it available
+		staticBody[params[1]] = new StaticObject(params[1], params[2], params[3], cr_addStaticCollision(dynamicsWorld, params[3], btVector3(amx_ctof(params[4]), amx_ctof(params[5]), amx_ctof(params[6])), btVector3(amx_ctof(params[7]), amx_ctof(params[8]), amx_ctof(params[9]))));
+		staticBody[params[1]]->col->setUserIndex(params[3]); //set the modelid
+		index_availability_static[params[1]] = 0; //make it unavailable
+	}
+	else
+		logprintf("cimulator::static collision object is already in use");
+	return 1;
+}
+
+// removes the dynamic collision volume from the world
+cell AMX_NATIVE_CALL CR_RemoveDynamicCol(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
+	{
+		cr_removeDynamicCol(dynamicsWorld, rigidBody[params[1]]->col); //remove the body from the world
+		index_availability_dynamic[params[1]] = 1; //make it available
 		SAFE_DELETE(rigidBody[params[1]]);
 		SLEEP(15); //wait...
 	}
 	return 1;
 }
 
-// get modelid
-cell AMX_NATIVE_CALL CR_GetColVolumeModel(AMX* amx, cell* params)
+// removes the static collision volume from the world
+cell AMX_NATIVE_CALL CR_RemoveStaticCol(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_static[params[1]])
+	{
+		cr_removeStaticCol(dynamicsWorld, staticBody[params[1]]->col); //remove the body from the world
+		index_availability_static[params[1]] = 1; //make it available
+		SAFE_DELETE(staticBody[params[1]]);
+		SLEEP(15); //wait...
+	}
+	return 1;
+}
+
+// get dynamic modelid
+cell AMX_NATIVE_CALL CR_GetDynamicColModel(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
 		return rigidBody[params[1]]->modelid; //return the modelid
 	return -1;
 }
 
-// get object id
-cell AMX_NATIVE_CALL CR_GetColVolumeObjectID(AMX* amx, cell* params)
+// get static modelid
+cell AMX_NATIVE_CALL CR_GetStaticColModel(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_static[params[1]])
+		return staticBody[params[1]]->modelid; //return the modelid
+	return -1;
+}
+
+// get dynamic object id
+cell AMX_NATIVE_CALL CR_GetDynamicColObject(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
 		return rigidBody[params[1]]->objectid; //return the objectid
+	return -1;
+}
+
+// get static object id
+cell AMX_NATIVE_CALL CR_GetStaticColObject(AMX* amx, cell* params)
+{
+	if (!index_availability_static[params[1]])
+		return staticBody[params[1]]->objectid; //return the modelid
 	return -1;
 }
 
 // sets mass
 cell AMX_NATIVE_CALL CR_SetMass(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setMass(rigidBody[params[1]]->col, amx_ctof(params[2])); //set the mass
 	return 1;
 }
@@ -196,16 +245,26 @@ cell AMX_NATIVE_CALL CR_SetMass(AMX* amx, cell* params)
 cell AMX_NATIVE_CALL CR_GetMass(AMX* amx, cell* params)
 {
 	btScalar mass = -1.f;
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		mass = cr_getMass(rigidBody[params[1]]->col); //returns the mass
 	return amx_ftoc(mass);
 }
 
-// sets a collision shape (real-time)
-cell AMX_NATIVE_CALL CR_SetCollisionShape(AMX* amx, cell* params)
+// sets a dynamic collision shape (real-time)
+cell AMX_NATIVE_CALL CR_SetDynamicColShape(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setCollisionShape(rigidBody[params[1]]->col, params[2]); //replaces the collision shape at real-time
+	SLEEP(5);
+	return 1;
+}
+
+// sets a static collision shape (real-time)
+cell AMX_NATIVE_CALL CR_SetStaticColShape(AMX* amx, cell* params)
+{
+	if (!index_availability_static[params[1]])
+		cr_setCollisionShape(staticBody[params[1]]->col, params[2]); //replaces the collision shape at real-time
+	SLEEP(5);
 	return 1;
 }
 
@@ -251,7 +310,7 @@ cell AMX_NATIVE_CALL CR_GetAABB(AMX* amx, cell* params)
 // returns the transform
 cell AMX_NATIVE_CALL CR_GetTransform(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 	{
 		btVector3 pos, rot;
 		cr_getColTransform(rigidBody[params[1]]->col, pos, rot); //provides the world transform
@@ -272,18 +331,30 @@ cell AMX_NATIVE_CALL CR_GetTransform(AMX* amx, cell* params)
 	return 1;
 }
 
-// sets origin
-cell AMX_NATIVE_CALL CR_SetOrigin(AMX* amx, cell* params)
+// sets dynamic origin
+cell AMX_NATIVE_CALL CR_SetDynamicOrigin(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setOrigin(rigidBody[params[1]]->col, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]))); //sets the origin
 	return 1;
 }
 
-// returns origin
-cell AMX_NATIVE_CALL CR_GetOrigin(AMX* amx, cell* params)
+// sets static origin
+cell AMX_NATIVE_CALL CR_SetStaticOrigin(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_static[params[1]])
+	{
+		btTransform transform = staticBody[params[1]]->col->getWorldTransform();
+		transform.setOrigin(btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]))); //sets the origin
+		staticBody[params[1]]->col->setWorldTransform(transform);
+	}
+	return 1;
+}
+
+// returns dynamic origin
+cell AMX_NATIVE_CALL CR_GetDynamicOrigin(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
 	{
 		btVector3 pos;
 		cell* addr[3];
@@ -298,18 +369,51 @@ cell AMX_NATIVE_CALL CR_GetOrigin(AMX* amx, cell* params)
 	return 1;
 }
 
-// sets rotations
-cell AMX_NATIVE_CALL CR_SetRotation(AMX* amx, cell* params)
+// returns static origin
+cell AMX_NATIVE_CALL CR_GetStaticOrigin(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_static[params[1]])
+	{
+		btVector3 pos;
+		cell* addr[3];
+		pos = staticBody[params[1]]->col->getWorldTransform().getOrigin();;
+		amx_GetAddr(amx, params[2], &addr[0]);
+		amx_GetAddr(amx, params[3], &addr[1]);
+		amx_GetAddr(amx, params[4], &addr[2]);
+		*addr[0] = amx_ftoc(pos.getX());
+		*addr[1] = amx_ftoc(pos.getY());
+		*addr[2] = amx_ftoc(pos.getZ());
+	}
+	return 1;
+}
+
+// sets dynamic rotations
+cell AMX_NATIVE_CALL CR_SetDynamicRotation(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
 		cr_setRotation(rigidBody[params[1]]->col, amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]));
 	return 1;
 }
 
-// passes rotations by reference
-cell AMX_NATIVE_CALL CR_GetRotation(AMX* amx, cell* params)
+// sets static rotations
+cell AMX_NATIVE_CALL CR_SetStaticRotation(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_static[params[1]])
+	{
+		btTransform transform;
+		btQuaternion quat;
+		quat.setEulerZYX(-amx_ctof(params[2]) * SIMD_DEG_TO_RAD, amx_ctof(params[3]) * SIMD_DEG_TO_RAD, amx_ctof(params[4]) * SIMD_DEG_TO_RAD);
+		transform = staticBody[params[1]]->col->getWorldTransform();
+		transform.setRotation(quat);
+		staticBody[params[1]]->col->setWorldTransform(transform);
+	}
+	return 1;
+}
+
+// passes rotations by reference
+cell AMX_NATIVE_CALL CR_GetDynamicRotation(AMX* amx, cell* params)
+{
+	if (!index_availability_dynamic[params[1]])
 	{
 		btScalar rot[3];
 		cell* addr[3];
@@ -324,10 +428,28 @@ cell AMX_NATIVE_CALL CR_GetRotation(AMX* amx, cell* params)
 	return 1;
 }
 
+// passes rotations by reference
+cell AMX_NATIVE_CALL CR_GetStaticRotation(AMX* amx, cell* params)
+{
+	if (!index_availability_static[params[1]])
+	{
+		btScalar rot[3];
+		cell* addr[3];
+		staticBody[params[1]]->col->getWorldTransform().getBasis().getEulerYPR(rot[0], rot[1], rot[2]);
+		amx_GetAddr(amx, params[2], &addr[0]);
+		amx_GetAddr(amx, params[3], &addr[1]);
+		amx_GetAddr(amx, params[4], &addr[2]);
+		*addr[0] = amx_ftoc(rot[0]);
+		*addr[1] = amx_ftoc(rot[1]);
+		*addr[2] = amx_ftoc(rot[2]);
+	}
+	return 1;
+}
+
 //sets linear velocity
 cell AMX_NATIVE_CALL CR_SetLinearVelocity(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setLinearVelocity(rigidBody[params[1]]->col, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])));
 	return 1;
 }
@@ -335,7 +457,7 @@ cell AMX_NATIVE_CALL CR_SetLinearVelocity(AMX* amx, cell* params)
 // passes linear velocity by reference
 cell AMX_NATIVE_CALL CR_GetLinearVelocity(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 	{
 		btVector3 vel = cr_getLinearVelocity(rigidBody[params[1]]->col);
 		cell* addr[3];
@@ -352,7 +474,7 @@ cell AMX_NATIVE_CALL CR_GetLinearVelocity(AMX* amx, cell* params)
 // sets angular velocity
 cell AMX_NATIVE_CALL CR_SetAngularVelocity(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setAngularVelocity(rigidBody[params[1]]->col, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])));
 	return 1;
 }
@@ -360,7 +482,7 @@ cell AMX_NATIVE_CALL CR_SetAngularVelocity(AMX* amx, cell* params)
 // passes angular velocity by reference
 cell AMX_NATIVE_CALL CR_GetAngularVelocity(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 	{
 		btVector3 vel = cr_getAngularVelocity(rigidBody[params[1]]->col);
 		cell* addr[3];
@@ -377,7 +499,7 @@ cell AMX_NATIVE_CALL CR_GetAngularVelocity(AMX* amx, cell* params)
 // sets torque
 cell AMX_NATIVE_CALL CR_SetTorque(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setTorque(rigidBody[params[1]]->col, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])));
 	return 1;
 }
@@ -385,7 +507,7 @@ cell AMX_NATIVE_CALL CR_SetTorque(AMX* amx, cell* params)
 // sets friction of a collision volume
 cell AMX_NATIVE_CALL CR_SetFriction(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setFriction(rigidBody[params[1]]->col, amx_ctof(params[2]));
 	return 1;
 }
@@ -394,7 +516,7 @@ cell AMX_NATIVE_CALL CR_SetFriction(AMX* amx, cell* params)
 cell AMX_NATIVE_CALL CR_GetFriction(AMX* amx, cell* params)
 {
 	btScalar friction = 0.f;
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		friction = cr_getFriction(rigidBody[params[1]]->col);
 	return amx_ftoc(friction);
 }
@@ -402,7 +524,7 @@ cell AMX_NATIVE_CALL CR_GetFriction(AMX* amx, cell* params)
 // sets the coefficient of restitution of the collision volume (avoid using it)
 cell AMX_NATIVE_CALL CR_SetRestitution(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_setRestitution(rigidBody[params[1]]->col, amx_ctof(params[2]));
 	return 1;
 }
@@ -411,7 +533,7 @@ cell AMX_NATIVE_CALL CR_SetRestitution(AMX* amx, cell* params)
 cell AMX_NATIVE_CALL CR_GetRestitution(AMX* amx, cell* params)
 {
 	btScalar rest = 0.f;
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		rest = cr_getRestitution(rigidBody[params[1]]->col);
 	return amx_ftoc(rest);
 }
@@ -419,30 +541,40 @@ cell AMX_NATIVE_CALL CR_GetRestitution(AMX* amx, cell* params)
 //checks whether a collision volume is active or not
 cell AMX_NATIVE_CALL CR_IsActive(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		return cr_isActive(rigidBody[params[1]]->col);
 	return 0;
 }
 
 // checks whether a collision volume is static or dynamic
-cell AMX_NATIVE_CALL CR_IsStatic(AMX* amx, cell* params)
+cell AMX_NATIVE_CALL CR_IsMoving(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
-		if (rigidBody[params[1]]->col->isStaticObject())
-			return 1;
-	return 0;
+	if (!index_availability_dynamic[params[1]])
+	{
+		btVector3 vel;
+		vel = rigidBody[params[1]]->col->getLinearVelocity();
+		if (vel.isZero())
+			return 0;
+	}
+	return 1;
 }
 
-// checks if the specified slot is available
-cell AMX_NATIVE_CALL CR_IsIndexAvailable(AMX* amx, cell* params)
+// checks if the specified slot is available for dynamic objects
+cell AMX_NATIVE_CALL CR_IsDynamicIdxAvailable(AMX* amx, cell* params)
 {
-	return index_availability[params[1]];
+	return index_availability_dynamic[params[1]];
+}
+
+// checks if the specified slot is available for static objects
+cell AMX_NATIVE_CALL CR_IsStaticIdxAvailable(AMX* amx, cell* params)
+{
+	return index_availability_static[params[1]];
 }
 
 // activates a deactivated collision volume
 cell AMX_NATIVE_CALL CR_Activate(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 		cr_activate(rigidBody[params[1]]->col);
 	return 1;
 }
@@ -485,7 +617,6 @@ cell AMX_NATIVE_CALL CR_CharacterContactTest(AMX* amx, cell* params)
 	CustomCollisionSensor sensor;
 	btCollisionObject* ob = cr_createCapsuleCharacter(dynamicsWorld, btVector3(amx_ctof(params[1]), amx_ctof(params[2]), amx_ctof(params[3])), amx_ctof(params[4]), amx_ctof(params[5]));
 	dynamicsWorld->contactTest(ob, sensor);
-	delete ob->getCollisionShape();
 	delete ob;
 	return sensor.hit;
 }
@@ -507,14 +638,28 @@ cell AMX_NATIVE_CALL CR_GetNumOverlappingObjects(AMX* amx, cell* params)
 	return -1;
 }
 
-// checks collision for a given collision volume
-cell AMX_NATIVE_CALL CR_ContactTest(AMX* amx, cell* params)
+// checks collision for a given dynamic collision volume
+cell AMX_NATIVE_CALL CR_DynamicContactTest(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 	{
 		CustomCollisionSensor callback;
 		dynamicsWorld->updateSingleAabb(rigidBody[params[1]]->col);
 		dynamicsWorld->contactTest(rigidBody[params[1]]->col, callback);
+		logprintf("Flags: %i", rigidBody[params[1]]->col->getCollisionFlags());
+		return callback.hit;
+	}
+	return 0;
+}
+
+// checks collision for a given static collision volume
+cell AMX_NATIVE_CALL CR_StaticContactTest(AMX* amx, cell* params)
+{
+	if (!index_availability_static[params[1]])
+	{
+		CustomCollisionSensor callback;
+		dynamicsWorld->updateSingleAabb(staticBody[params[1]]->col);
+		dynamicsWorld->contactTest(staticBody[params[1]]->col, callback);
 		return callback.hit;
 	}
 	return 0;
@@ -524,18 +669,19 @@ cell AMX_NATIVE_CALL CR_ContactTest(AMX* amx, cell* params)
 cell AMX_NATIVE_CALL CR_ContactTestEx(AMX* amx, cell* params)
 {
 	CustomCollisionSensor callback;
-	btRigidBody* body = cr_addColBody(dynamicsWorld, params[1], 0.f, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])), 0, ACTIVE_TAG);
+	btCollisionObject* body = cr_addStaticCollision(dynamicsWorld, params[1], btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])));
 	dynamicsWorld->contactTest(body, callback);
-	cr_removeColBody(dynamicsWorld, body);
-	delete body->getMotionState();
+	dynamicsWorld->removeCollisionObject(body);
+	delete body->getCollisionShape();
 	delete body;
+	SLEEP(1);
 	return callback.hit;
 }
 
 // point of contact of two objects are passed by reference
 cell AMX_NATIVE_CALL CR_GetContactPoints(AMX* amx, cell* params)
 {
-	if (!index_availability[params[1]])
+	if (!index_availability_dynamic[params[1]])
 	{
 		CustomCollisionSensor callback;
 		dynamicsWorld->contactTest(rigidBody[params[1]]->col, callback);
@@ -565,11 +711,17 @@ cell AMX_NATIVE_CALL CR_FreeMemory(AMX* amx, cell* params)
 {
 	for (int i = 0; i < CRMAX_BODY; i++)
 	{
-		if (rigidBody[i] != NULL)
+		if (rigidBody[i])
 		{
-			index_availability[i] = 1;
+			index_availability_dynamic[i] = 1;
 			SAFE_DELETE(rigidBody[i]);
-			//logprintf("Deleted id: %i", i);
+			//logprintf("Deleted Dynamic id: %i", i);
+		}
+		if (staticBody[i])
+		{
+			index_availability_static[i] = 1;
+			SAFE_DELETE(staticBody[i]);
+			//logprintf("Deleted Static id: %i", i);
 		}
 	}
 	return 1;
@@ -592,8 +744,10 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
 	for (int i = 0; i < CRMAX_BODY; i++)
 	{
-		index_availability[i] = 1; //initializing the availability array
+		index_availability_dynamic[i] = 1; //initializing the availability array
+		index_availability_static[i] = 1; //initializing the availability array
 		rigidBody[i] = NULL;
+		staticBody[i] = NULL;
 	}
 	clock = new btClock();
 	broadphase = new btDbvtBroadphase();
@@ -602,8 +756,10 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	solver = new btSequentialImpulseConstraintSolver();
 	dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
 	dynamicsWorld->getPairCache()->setInternalGhostPairCallback(new btGhostPairCallback());
-	cr_readCadb();
-	cr_createColObject();
+	if (cr_readCadb())
+		cr_createColObject();
+	else
+		logprintf("The .cadb file is not present in the scriptfiles directory");
 	logprintf(" ====================");
 	logprintf(" Project: cimulator");
 	logprintf(" Version: %0.2f", VERSION);
@@ -622,10 +778,16 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	cr_unLoad(dynamicsWorld); //deletes the collision map
 	for (int i = 0; i < CRMAX_BODY; i++)
 	{
-		if (rigidBody[i] != NULL)
+		if (rigidBody[i])
 		{
-			index_availability[i] = 1;
+			index_availability_dynamic[i] = 1;
 			SAFE_DELETE(rigidBody[i]);
+		}
+
+		if (staticBody[i])
+		{
+			index_availability_static[i] = 1;
+			SAFE_DELETE(staticBody[i]);
 		}
 	}
 	delete dynamicsWorld;
@@ -635,6 +797,7 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 	delete clock;
 
 	delete[] *rigidBody;
+	delete[] *staticBody;
 	delete[] *ghost;
 }
 
@@ -650,20 +813,29 @@ AMX_NATIVE_INFO PluginNatives[] =
 	{ "CR_RayTrace", CR_RayTrace },
 	{ "CR_RayTraceEx", CR_RayTraceEx },
 	{ "CR_RayTraceReflection", CR_RayTraceReflection },
-	{ "CR_CreateColVolume", CR_CreateColVolume },
-	{ "CR_RemoveColVolume", CR_RemoveColVolume },
-	{ "CR_GetColVolumeModel", CR_GetColVolumeModel },
-	{ "CR_GetColVolumeObjectID", CR_GetColVolumeObjectID },
+	{ "CR_CreateDynamicCol", CR_CreateDynamicCol },
+	{ "CR_CreateStaticCol", CR_CreateStaticCol },
+	{ "CR_RemoveDynamicCol", CR_RemoveDynamicCol },
+	{ "CR_RemoveStaticCol", CR_RemoveStaticCol },
+	{ "CR_GetDynamicColModel", CR_GetDynamicColModel },
+	{ "CR_GetDynamicColObject", CR_GetDynamicColObject },
+	{ "CR_GetStaticColModel", CR_GetStaticColModel },
+	{ "CR_GetStaticColObject", CR_GetStaticColObject },
 	{ "CR_SetMass", CR_SetMass },
 	{ "CR_GetMass", CR_GetMass },
-	{ "CR_SetCollisionShape", CR_SetCollisionShape },
+	{ "CR_SetDynamicColShape", CR_SetDynamicColShape },
+	{ "CR_SetStaticColShape", CR_SetStaticColShape },
 	{ "CR_GetBoundingSphere", CR_GetBoundingSphere },
 	{ "CR_GetAABB", CR_GetAABB },
 	{ "CR_GetTransform", CR_GetTransform },
-	{ "CR_SetOrigin", CR_SetOrigin },
-	{ "CR_GetOrigin", CR_GetOrigin },
-	{ "CR_SetRotation", CR_SetRotation },
-	{ "CR_GetRotation", CR_GetRotation },
+	{ "CR_SetDynamicOrigin", CR_SetDynamicOrigin },
+	{ "CR_GetDynamicOrigin", CR_GetDynamicOrigin },
+	{ "CR_SetStaticOrigin", CR_SetStaticOrigin },
+	{ "CR_GetStaticOrigin", CR_GetStaticOrigin },
+	{ "CR_SetDynamicRotation", CR_SetDynamicRotation },
+	{ "CR_GetDynamicRotation", CR_GetDynamicRotation },
+	{ "CR_SetStaticRotation", CR_SetStaticRotation },
+	{ "CR_GetStaticRotation", CR_GetStaticRotation },
 	{ "CR_SetLinearVelocity", CR_SetLinearVelocity },
 	{ "CR_GetLinearVelocity", CR_GetLinearVelocity },
 	{ "CR_SetAngularVelocity", CR_SetAngularVelocity },
@@ -674,8 +846,9 @@ AMX_NATIVE_INFO PluginNatives[] =
 	{ "CR_SetRestitution", CR_SetRestitution },
 	{ "CR_GetRestitution", CR_GetRestitution },
 	{ "CR_IsActive", CR_IsActive },
-	{ "CR_IsStatic", CR_IsStatic },
-	{ "CR_IsIndexAvailable", CR_IsIndexAvailable },
+	{ "CR_IsMoving", CR_IsMoving },
+	{ "CR_IsDynamicIdxAvailable", CR_IsDynamicIdxAvailable },
+	{ "CR_IsStaticIdxAvailable", CR_IsStaticIdxAvailable },
 	{ "CR_Activate", CR_Activate },
 	{ "CR_GetNumCollisionObject", CR_GetNumCollisionObject },
 	{ "CR_GetNumChildShapes", CR_GetNumChildShapes },
@@ -685,7 +858,8 @@ AMX_NATIVE_INFO PluginNatives[] =
 	{ "CR_CharacterContactTest", CR_CharacterContactTest },
 	{ "CR_CreateGhost", CR_CreateGhost },
 	{ "CR_GetNumOverlappingObjects", CR_GetNumOverlappingObjects },
-	{ "CR_ContactTest", CR_ContactTest },
+	{ "CR_DynamicContactTest", CR_DynamicContactTest },
+	{ "CR_StaticContactTest", CR_StaticContactTest },
 	{ "CR_ContactTestEx", CR_ContactTestEx },
 	{ "CR_GetContactPoints", CR_GetContactPoints },
 	{ "CR_FreeMemory", CR_FreeMemory },
