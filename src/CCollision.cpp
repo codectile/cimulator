@@ -28,7 +28,7 @@ std::vector<btCollisionObject*> cache_bodies;
 ColData* cData;
 cINST* inst;
 
-void cr_readCadb()
+int cr_readCadb()
 {
 	Header header;
 	std::fstream file;
@@ -85,7 +85,9 @@ void cr_readCadb()
 			}
 		}
 		file.close();
+		return 1;
 	}
+	return 0;
 }
 
 void cr_createColObject()
@@ -132,6 +134,7 @@ void cr_createColObject()
 			dynamic_shapes[cData[i].modelid].addChildShape(btTransform(quat, btVector3(0, 0, 0)), convex);
 		}
 	}
+
 	delete[] cData->sphere;
 	delete[] cData->box;
 	delete[] cData->face;
@@ -165,17 +168,28 @@ void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldre
 }
 
 //all collision data related functions
-btRigidBody* cr_addColBody(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int inrt, int state)
+btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotation)
 {
 	btQuaternion rot;
-	rot.setEuler(rotation.getX(), rotation.getY(), rotation.getZ());
+	rot.setEuler(rotation.getZ(), rotation.getY(), rotation.getX());
+	btCollisionObject* col = new btCollisionObject();
+	col->setCollisionShape((btCompoundShape*)(&dynamic_shapes[modelid]));
+	col->setCollisionFlags(1);
+	col->setWorldTransform(btTransform(rot, position));
+	col->setActivationState(ACTIVE_TAG);
+	dynamicsWorld->addCollisionObject(col);
+	return col;
+}
+
+btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int state)
+{
+	btQuaternion rot;
+	rot.setEuler(rotation.getZ(), rotation.getY(), rotation.getX());
 	btMotionState* motionState = new btDefaultMotionState(btTransform(rot, position));
 	btVector3 inertia(0, 0, 0);
-	if (inrt)
-	{
-		if (mass != 0.f)
-			dynamic_shapes[modelid].calculateLocalInertia(mass, inertia);
-	}
+	if (mass <= 0.f)
+		mass = 1.f; //for dynamic objects mass cannot be zero
+	dynamic_shapes[modelid].calculateLocalInertia(mass, inertia);
 	btRigidBody::btRigidBodyConstructionInfo information(mass, motionState, (btCompoundShape*)(&dynamic_shapes[modelid]), inertia);
 	btRigidBody* rigidBody = new btRigidBody(information);
 	rigidBody->setActivationState(state);
@@ -188,6 +202,16 @@ void cr_removeColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigid
 	dynamicsWorld->removeRigidBody(rigidBody);
 }
 
+void cr_removeDynamicCol(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody)
+{
+	dynamicsWorld->removeRigidBody(rigidBody);
+}
+
+void cr_removeStaticCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* colObj)
+{
+	dynamicsWorld->removeCollisionObject(colObj);
+}
+
 void cr_deleteColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody)
 {
 	//dynamicsWorld->removeRigidBody(rigidBody);
@@ -195,7 +219,7 @@ void cr_deleteColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigid
 	delete rigidBody;
 }
 
-void cr_setCollisionShape(btRigidBody* rigidBody, int modelid)
+void cr_setCollisionShape(btCollisionObject* rigidBody, int modelid)
 {
 	rigidBody->setCollisionShape((btCompoundShape*)&dynamic_shapes[modelid]);
 }
@@ -289,7 +313,7 @@ void cr_removeGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost
 void cr_deleteGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost)
 {
 	dynamicsWorld->removeCollisionObject(ghost);
-	delete ghost->getCollisionShape();
+	//delete ghost->getCollisionShape(); potential crash
 	delete ghost;
 }
 
