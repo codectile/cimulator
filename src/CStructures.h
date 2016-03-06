@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -53,9 +53,9 @@ struct cBox
 
 struct cFaces
 {
-	TVector face1;
-	TVector face2;
-	TVector face3;
+	TVector v0;
+	TVector v1;
+	TVector v2;
 };
 
 struct ColData
@@ -64,9 +64,9 @@ struct ColData
 	uint16_t numSpheres;
 	uint16_t numBoxes;
 	uint16_t numFaces;
-	cSphere* sphere;
-	cBox* box;
-	cFaces* face;
+	cSphere* sphere = 0;
+	cBox* box = 0;
+	cFaces* face = 0;
 };
 
 struct cINST
@@ -76,7 +76,25 @@ struct cINST
 	TQuaternion rot;
 };
 
+//Additional Vehicle Collision Structures
+struct THeader
+{
+	char m_magic[4];
+	uint8_t m_numModels; //always 211
+};
 
+struct TVehicle
+{
+	uint16_t m_modelid;
+	uint16_t m_numspheres;
+	uint16_t m_numboxes;
+	uint16_t m_numfaces;
+	cSphere* spheres = 0;
+	cBox* boxes = 0;
+	cFaces* faces = 0;
+};
+
+static uint16_t vehicleRef[612];
 static int numCols;
 static int numIPLs;
 #endif // !CSTRUCTURES_S
