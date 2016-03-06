@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -23,6 +23,7 @@ int cr_rayTrace(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVect
 int cr_rayTraceEx(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit, int& modelid);
 int cr_rayTraceNormal(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& normal);
 int cr_rayTraceReflection(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& reflection, btScalar& angle);
+int cr_rayTraceInfo(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, int& modelid, float& boundRadius, int& isStatic);
 void cr_setMass(btRigidBody* rigidBody, btScalar mass);
 btScalar cr_getMass(btRigidBody* rigidBody);
 void cr_getColTransform(btRigidBody* body, btVector3& pos, btVector3& rot);
@@ -43,5 +44,6 @@ btScalar cr_getRestitution(btRigidBody* rigidBody);
 void cr_activate(btRigidBody* rigidBody);
 void cr_deActivate(btRigidBody* rigidBody);
 void cr_setTorque(btRigidBody* rigidBody, btVector3& torque);
+void QuatToEuler(btQuaternion& rotation, btVector3& result);
 
 #endif // !CDYNAMICS_H
