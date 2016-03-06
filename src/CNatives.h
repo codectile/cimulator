@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
 Permission is granted to anyone to use this software for any purpose,
@@ -22,7 +22,7 @@ subject to the following restrictions:
 #include <vector>
 #include "CCollision.h"
 #include "CDynamics.h"
-#define VERSION	1.03
+#define VERSION	1.05
 #define SAFE_DELETE(pointer)	if(pointer){ delete pointer; pointer = NULL;}
 #ifndef _WIN32
 #define SLEEP(ms) usleep(x * 1000)
@@ -33,8 +33,8 @@ subject to the following restrictions:
 #define OS "Windows"
 #endif // !_WIN32
 
-#define SIMD_DEG_TO_RAD	 btScalar(0.0174532925)
-#define SIMD_RADIAN_TO_DEG	 btScalar(57.29577951)
+#define SIMD_DEG_TO_RAD	 btScalar(0.01745329251994329576923690768489)
+#define SIMD_RADIAN_TO_DEG	 btScalar(57.295779513082320876798154814105)
 
 #define CRMAX_BODY	30000
 #define CRMAX_GHOST	30000
@@ -88,8 +88,31 @@ public:
 	}
 };
 
+class VehicleObject
+{
+public:
+	int index;
+	int modelid;
+	int vehicleid;
+	btCollisionObject* col;
+
+	VehicleObject(int idx, int vhclid, int mdlid, btCollisionObject* body) : index(idx), vehicleid(vhclid), modelid(mdlid), col(body)
+	{
+	}
+
+	~VehicleObject()
+	{
+		index = -1;
+		vehicleid = -1;
+		modelid = -1;
+		delete col;
+		col = NULL;
+	}
+};
+
 DynamicObject* rigidBody[CRMAX_BODY];
 StaticObject* staticBody[CRMAX_BODY];
+VehicleObject* vehicleBody[CRMAX_BODY];
 btGhostObject* ghost[CRMAX_GHOST];
 
 btClock* clock;
@@ -104,5 +127,9 @@ extern void *pAMXFunctions;
 std::vector<AMX*> amxList;
 static int index_availability_static[CRMAX_BODY];
 static int index_availability_dynamic[CRMAX_BODY];
+static int index_availability_vehicle[CRMAX_BODY];
 static int simFlag = 0;
+
+//declaration
+bool OnCollisionOccur(btManifoldPoint& cp, void* body0, void* body1);
 #endif // !CNATIVES_H
