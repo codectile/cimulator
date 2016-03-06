@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -14,8 +14,8 @@ subject to the following restrictions:
 */
 
 #include "btBulletDynamicsCommon.h"
-#define SIMD_DEG_TO_RAD	 btScalar(0.0174532925)
-#define SIMD_RADIAN_TO_DEG	 btScalar(57.29577951)
+#define SIMD_DEG_TO_RAD	 btScalar(0.01745329251994329576923690768489)
+#define SIMD_RADIAN_TO_DEG	 btScalar(57.295779513082320876798154814105)
 
 //dynamics world
 int cr_getNumCollisionObject(btDiscreteDynamicsWorld* dynamicsWorld)
@@ -85,6 +85,22 @@ int cr_rayTraceReflection(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& sta
 	return 0;
 }
 
+int cr_rayTraceInfo(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, int& modelid, float& boundRadius, int& isStatic)
+{
+	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
+	dynamicsWorld->rayTest(start, end, onHit);
+	if (onHit.hasHit())
+	{
+		modelid = onHit.m_collisionObject->getUserIndex();
+		onHit.m_collisionObject->getCollisionShape()->getBoundingSphere(end, boundRadius);
+		isStatic = onHit.m_collisionObject->isStaticObject() ? 1 : 0;
+		return 1;
+	}
+	modelid = isStatic = -1;
+	boundRadius = 0.f;
+	return 0;
+}
+
 void cr_simulate(btDiscreteDynamicsWorld* dynamicsWorld, int newtime, int oldtime)
 {
 	dynamicsWorld->stepSimulation((((btScalar)(newtime - oldtime)) / 1000.f), 30);
@@ -117,7 +133,7 @@ int cr_isActive(btRigidBody* rigidBody)
 void cr_getColTransform(btRigidBody* body, btVector3& pos, btVector3& rot)
 {
 	btTransform transform;
-	
+
 	body->getMotionState()->getWorldTransform(transform);
 	pos = transform.getOrigin();
 
@@ -126,7 +142,7 @@ void cr_getColTransform(btRigidBody* body, btVector3& pos, btVector3& rot)
 	rot.setX(roll * SIMD_RADIAN_TO_DEG);
 	rot.setY(pitch * SIMD_RADIAN_TO_DEG);
 	rot.setZ(-yaw * SIMD_RADIAN_TO_DEG);
-	
+
 }
 
 void cr_setOrigin(btRigidBody* rigidBody, btVector3& pos)
@@ -150,7 +166,7 @@ void cr_setRotation(btRigidBody* rigidBody, btScalar yaw, btScalar pitch, btScal
 {
 	btTransform transform;
 	btQuaternion quat;
-	quat.setEulerZYX(-yaw * SIMD_DEG_TO_RAD, pitch * SIMD_DEG_TO_RAD, roll * SIMD_DEG_TO_RAD);
+	quat.setEuler(yaw * SIMD_DEG_TO_RAD, pitch * SIMD_DEG_TO_RAD, roll * SIMD_DEG_TO_RAD);
 	rigidBody->getMotionState()->getWorldTransform(transform);
 	transform.setRotation(quat);
 	rigidBody->getMotionState()->setWorldTransform(transform);
@@ -161,6 +177,9 @@ void cr_getRotation(btRigidBody* rigidBody, btScalar &yaw, btScalar &pitch, btSc
 	btTransform transform;
 	rigidBody->getMotionState()->getWorldTransform(transform);
 	transform.getBasis().getEulerZYX(yaw, pitch, roll);
+	yaw *= SIMD_RADIAN_TO_DEG;
+	pitch *= SIMD_RADIAN_TO_DEG;
+	roll *= SIMD_RADIAN_TO_DEG;
 }
 
 void cr_setLinearVelocity(btRigidBody* rigidBody, btVector3& velocity)
