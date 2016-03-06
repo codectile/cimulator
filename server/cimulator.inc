@@ -120,6 +120,13 @@ native CR_Load(Float:worldrest = 0.0);
  */
  native CR_RemoveColMap();
 
+ /*
+  * removes the collision volumes for a given range and modelid
+  * To remove all models in a given range, use -1 as modelid in the function below
+  * The function must be used used after loading the map i.e. after using CR_Load
+  */
+ native CR_RemoveBuilding(modelid, Float:x, Float:y, Float:z, Float:range);
+
 /*
  * sets the world gravity
  */
@@ -149,6 +156,11 @@ native CR_RayTrace(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &
   * passes the reflection vector and the angle by reference
   */
 native CR_RayTraceReflection(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:rx, &Float:ry, &Float:rz, &Float:angle);
+
+/*
+ * passes the object's information by reference which the object hits
+ */
+native CR_RayTraceObjectInfo(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &modelid, &Float:boundingRadius, &isStatic);
 
 /*
  * frees all the user created memory i.e. collision volumes
@@ -413,9 +425,49 @@ native CR_GetTimeMilliseconds();
 native CR_GetDynamicColObject(index);
 
 /*
-  * returns the objectid with respect to the dynamic index
-  */
+ * returns the objectid with respect to the dynamic index
+ */
 native CR_GetStaticColObject(index);
+
+/*
+ * creates precise vehicle collision
+ */
+native CR_CreateVehicleCol(index, vehicleid, modelid, Float:x, Float:y, Float:z, Float:qx, Float:qy, Float:qz, Float:qw);
+
+/*
+ * deletes the vehicle collision
+ */
+native CR_RemoveVehicleCol(index);
+
+/*
+ * sets the position of the collision volume of the vehicle
+ */
+native CR_SetVehicleOrigin(index, Float:x, Float:y, Float:z);
+
+/*
+ * passes the position by reference
+ */
+native CR_GetVehicleOrigin(index, &Float:x, &Float:y, &Float:z);
+
+/*
+ * sets the rotation of the collision volume
+ */
+native CR_SetVehicleRotation(index, Float:qx, Float:qy, Float:qz, Float:qw);
+
+/*
+ * passes the rotation by reference
+ */
+native CR_GetVehicleRotation(index, &Float:qx, &Float:qy, &Float:qz, &Float:qw);
+
+/*
+ * verify whether the index is available for creation of collision volume
+ */
+native CR_IsVehicleIndexAvailable(index);
+
+/*
+ * checks whether the vehicle is in contact with any other object/world
+ */
+native CR_VehicleContactTest(index);
 
 /*
  * sets the tansform of the collision volume and the object passed
@@ -441,7 +493,7 @@ stock CR_UpdateTransform(index)
 		CR_GetTransform(index, x, y, z, rotx, roty, rotz);
 		SetDynamicObjectPos(ob, x, y, z);
 		SetDynamicObjectRot(ob, rotx, roty, rotz);
-		CR_Wait(0);
+		//CR_Wait(0);
 	}
 }
 
@@ -528,8 +580,59 @@ public	CR_ProcessSimulation()
 	cr_newtime = GetTickCount();
 	CR_Simulator(cr_newtime, cr_oldtime);
 	cr_oldtime = cr_newtime;
-	//SetTimer("CR_ProcessSimulation", 20, false); now the simulation syncs with the server
 }
+
+/*
+ * custom functions
+ */
+
+ // throws an object
+ stock CR_ThrowObject(playerid, index, Float:speed)
+ {
+	if(IsDynamicIdxAvailable(index))
+	{
+		new Float:pos[3], Float:angle;
+		GetPlayerFacingAngle(playerid, angle);
+		GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
+		CR_SetLinearVelocity(index, speed * floatsin(-angle, degrees), speed * floatcos(-angle, degrees), 0.f);
+		return 1;
+	}
+	return 0;
+ }
+
+ // returns the information of the object in front of player, valid for vehicles as well
+ stock CR_GetForwardObjectInfo(playerid, Float:distance, &modelid, &Float:boundingRadius, &isStatic)
+ {
+	new Float:x, Float:y, Float:z, Float:facing;
+	GetPlayerPos(playerid, x, y, z);
+	GetPlayerFacingAngle(playerid, facing);
+	if(CR_RayTraceObjectInfo(x, y, z, x + distance * floatsin(-facing, degrees), y + distance * floatcos(-facing, degrees), z, modelid, boundingRadius, isStatic))
+		return 1;
+	return 0;
+ }
+
+ // places an object on the ground, the object must be above the ground
+ stock CR_PlaceDynamicObjectOnGround(objectid)
+ {
+	new Float:x, Float:y, Float:z;
+	GetDynamicObjectPos(objectid, x, y, z);
+	CR_RayTrace(x, y, z, x, y, z - 10000000.0, x, y, z);
+	SetDynamicObjectPos(objectid, x, y, z);
+ }
+
+ stock CR_FindZ_For2D(Float:x, Float:y, &Float:z)
+ {
+	if(CR_RayTrace(x, y, 1000.0, x, y, (direction * 10000000.0), x, y, z))
+		return 1;
+	return 0;
+ }
+
+/*
+ * forwarding CR_OnCollisionOccur. This callback gets called instantly as it detects collisions between any two objects
+ * note that, the callback gets called too frequently, may be 10000 times per second
+ */
+
+ forward CR_OnCollisionOccur(modelid0, modelid1);
 
 /*
  * hooking OnGameModeInit()
