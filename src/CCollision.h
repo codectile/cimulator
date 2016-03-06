@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -22,7 +22,7 @@ struct CustomCollisionSensor : public btCollisionWorld::ContactResultCallback
 	btVector3 contactPointA, contactPointB;
 	btScalar penetrationDepth;
 	CustomCollisionSensor() : btCollisionWorld::ContactResultCallback(), hit(0), contactPointA(0, 0, 0), contactPointB(0, 0, 0)
-	{ 
+	{
 	}
 
 	virtual btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* colObj0, int partId0, int index0, const btCollisionObjectWrapper* colObj1, int partId1, int index1)
@@ -31,15 +31,20 @@ struct CustomCollisionSensor : public btCollisionWorld::ContactResultCallback
 		contactPointA = cp.getPositionWorldOnA();
 		contactPointB = cp.getPositionWorldOnB();
 		penetrationDepth = cp.getDistance();
-		//printf("\ncolObj0: %i", colObj0->m_collisionObject->getUserIndex());
-		//printf("colObj1: %i", colObj1->m_collisionObject->getUserIndex());
+		printf("\ncolObj0: %i", colObj0->m_collisionObject->getUserIndex());
+		printf("\ncolObj1: %i", colObj1->m_collisionObject->getUserIndex());
 		return 0;
 	}
 };
 
 int cr_readCadb();
+int cr_readCCF();
+void cr_createColVehicle();
 void cr_createColObject();
+void cr_removeVehicleCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* col);
+btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btQuaternion& rotation);
 void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldrest);
+void cr_removeBuilding(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar x, btScalar y, btScalar z, btScalar radius);
 btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotatation);
 btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int state);
 void cr_removeDynamicCol(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
@@ -58,4 +63,8 @@ btGhostObject* cr_createGhost(btDiscreteDynamicsWorld* dynamicsWorld, int modeli
 int cr_getNumOverlappingObjects(btGhostObject* ghost);
 void cr_removeGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost);
 void cr_deleteGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost);
+
+static btCompoundShape* static_shapes;
+static btCompoundShape* dynamic_shapes;
+static btCompoundShape* vehicle_shapes;
 #endif // !CCOLLISION_H
