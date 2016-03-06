@@ -2,8 +2,8 @@
 #include <streamer>
 #include <cimulator>
 
-new obj[10];
-
+new obj[10], vid;
+new Float:vx, Float:vy, Float:vz;
 main()
 {
 	print("\n----------------------------------");
@@ -69,7 +69,7 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnPlayerSpawn(playerid)
 {
-    SetPlayerCameraPos(playerid, 132.3336,-67.6250,1.5781);
+    	SetPlayerCameraPos(playerid, 132.3336,-67.6250,1.5781);
 	SetPlayerCameraLookAt(playerid, 133.73849, -91.85670, 4.15000);
 	return 1;
 }
@@ -143,6 +143,29 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	if (!strcmp("/start", cmdtext, true))
 	{
 		CR_EnableSimulation();
+		return 1;
+	}
+	
+	if (!strcmp("/createvehicle", cmdtext, true))
+	{
+		GetPlayerPos(playerid, vx, vy, vz);
+	 	vid = CreateVehicle(418, vx, vy, vz, 120.0, 255, 255, -1);
+	 	PutPlayerInVehicle(playerid, vid, 0);
+		return 1;
+	}
+
+	if (!strcmp("/createvcol", cmdtext, true))
+	{
+	 	new Float:rx, Float:ry, Float:rz, Float:rw;
+	 	GetVehicleRotationQuat(vid, rw, rx, ry, rz);
+	 	RemovePlayerFromVehicle(playerid);
+  		CR_CreateVehicleCol(0, vid, 418, vx, vy, vz, rx, ry, rz, rw);
+		return 1;
+	}
+
+	if (!strcmp("/removevehicle", cmdtext, true))
+	{
+        CR_RemoveVehicleCol(0);
 		return 1;
 	}
 	return 0;
@@ -283,3 +306,11 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
+
+/*
+//uncomment to use
+public CR_OnCollisionOccur(modelid0, modelid1)
+{
+	printf("\n%i\n%i", modelid0, modelid1);
+	return 1;
+}*/
