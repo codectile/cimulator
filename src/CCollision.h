@@ -16,24 +16,44 @@ subject to the following restrictions:
 #ifndef CCOLLISION_H
 #define CCOLLISION_H
 
+#define SIMD_DEG_TO_RAD	 btScalar(0.01745329251994329576923690768489)
+#define SIMD_RADIAN_TO_DEG	 btScalar(57.295779513082320876798154814105)
+
+//custom collision sensor, it senses whether an objects is in contact with other or not
 struct CustomCollisionSensor : public btCollisionWorld::ContactResultCallback
 {
-	int hit;
+	int hits;
 	btVector3 contactPointA, contactPointB;
 	btScalar penetrationDepth;
-	CustomCollisionSensor() : btCollisionWorld::ContactResultCallback(), hit(0), contactPointA(0, 0, 0), contactPointB(0, 0, 0)
+	CustomCollisionSensor() : btCollisionWorld::ContactResultCallback(), hits(0), contactPointA(0, 0, 0), contactPointB(0, 0, 0)
 	{
 	}
 
 	virtual btScalar addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* colObj0, int partId0, int index0, const btCollisionObjectWrapper* colObj1, int partId1, int index1)
 	{
-		hit = 1;
+		hits++; //determines that how many objects were in contact with the query object
 		contactPointA = cp.getPositionWorldOnA();
 		contactPointB = cp.getPositionWorldOnB();
 		penetrationDepth = cp.getDistance();
-		printf("\ncolObj0: %i", colObj0->m_collisionObject->getUserIndex());
-		printf("\ncolObj1: %i", colObj1->m_collisionObject->getUserIndex());
+		//printf("\ncolObj0: %i", colObj0->m_collisionObject->getUserIndex());
+		//printf("\ncolObj1: %i", colObj1->m_collisionObject->getUserIndex());
 		return 0;
+	}
+};
+
+// simple user data structure
+struct UserData
+{
+	int m_integerType;
+	float m_floatType;
+	UserData() : m_integerType(0), m_floatType(0.f)
+	{
+
+	}
+	~UserData()
+	{
+		m_integerType = 0;
+		m_floatType = 0.f;
 	}
 };
 
@@ -46,7 +66,7 @@ btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWo
 void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldrest);
 void cr_removeBuilding(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar x, btScalar y, btScalar z, btScalar radius);
 btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotatation);
-btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int state);
+btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int inertia, int state);
 void cr_removeDynamicCol(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
 void cr_removeStaticCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* colObj);
 void cr_deleteColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
@@ -59,12 +79,11 @@ void cr_removeColMap(btDiscreteDynamicsWorld* dynamicsWorld);
 void cr_removeRoadBlocks(btDiscreteDynamicsWorld* dynamicsWorld);
 void cr_unLoad(btDiscreteDynamicsWorld* dynamicsWorld);
 btCollisionObject* cr_createCapsuleCharacter(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& position, btScalar radius, btScalar height);
-btGhostObject* cr_createGhost(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotation);
-int cr_getNumOverlappingObjects(btGhostObject* ghost);
-void cr_removeGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost);
-void cr_deleteGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost);
 
-static btCompoundShape* static_shapes;
-static btCompoundShape* dynamic_shapes;
-static btCompoundShape* vehicle_shapes;
+extern btCompoundShape* static_shapes;
+extern btCompoundShape* dynamic_shapes;
+extern btCompoundShape* vehicle_shapes_st;
+extern btCompoundShape* vehicle_shapes_dn;
+
+extern uint16_t vehicleRef[612];
 #endif // !CCOLLISION_H
