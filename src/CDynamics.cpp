@@ -33,7 +33,7 @@ btVector3 cr_getWorldGravity(btDiscreteDynamicsWorld* dynamicsWorld)
 	return dynamicsWorld->getGravity();
 }
 
-int cr_rayTrace(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit)
+int cr_rayCast(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit)
 {
 	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
 	dynamicsWorld->rayTest(start, end, onHit);
@@ -45,7 +45,7 @@ int cr_rayTrace(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVect
 	return 0;
 }
 
-int cr_rayTraceEx(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit, int& modelid)
+int cr_rayCastEx(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit, int& modelid)
 {
 	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
 	dynamicsWorld->rayTest(start, end, onHit);
@@ -58,7 +58,7 @@ int cr_rayTraceEx(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVe
 	return 0;
 }
 
-int cr_rayTraceNormal(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& normal)
+int cr_rayCastNormal(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& normal)
 {
 	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
 	dynamicsWorld->rayTest(start, end, onHit);
@@ -70,7 +70,7 @@ int cr_rayTraceNormal(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, 
 	return 0;
 }
 
-int cr_rayTraceReflection(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& reflection, btScalar& angle)
+int cr_rayCastReflection(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& reflection, btScalar& angle)
 {
 	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
 	dynamicsWorld->rayTest(start, end, onHit);
@@ -85,7 +85,7 @@ int cr_rayTraceReflection(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& sta
 	return 0;
 }
 
-int cr_rayTraceInfo(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, int& modelid, float& boundRadius, int& isStatic)
+int cr_rayCastInfo(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, int& modelid, float& boundRadius, int& isStatic)
 {
 	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
 	dynamicsWorld->rayTest(start, end, onHit);
@@ -101,7 +101,20 @@ int cr_rayTraceInfo(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, bt
 	return 0;
 }
 
-void cr_simulate(btDiscreteDynamicsWorld* dynamicsWorld, int newtime, int oldtime)
+void* cr_rayCastData(btDiscreteDynamicsWorld* dynamicsWorld, btVector3& start, btVector3& end, btVector3& hit)
+{
+	btCollisionWorld::ClosestRayResultCallback onHit(start, end);
+	dynamicsWorld->rayTest(start, end, onHit);
+	void *pData = NULL;
+	if (onHit.hasHit())
+	{
+		hit = onHit.m_hitPointWorld;
+		pData = onHit.m_collisionObject->getUserPointer();
+	}
+	return pData;
+}
+
+void cr_simulate(btDiscreteDynamicsWorld* dynamicsWorld, unsigned long long newtime, unsigned long long oldtime)
 {
 	dynamicsWorld->stepSimulation((((btScalar)(newtime - oldtime)) / 1000.f), 30);
 }
