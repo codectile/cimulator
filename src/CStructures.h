@@ -17,6 +17,7 @@ subject to the following restrictions:
 #define CSTRUCTURES_S
 #include <stdint.h>
 
+//----------------- All Structures -------------------
 struct TVector
 {
 	float x;
@@ -94,7 +95,9 @@ struct TVehicle
 	cFaces* faces = 0;
 };
 
-static uint16_t vehicleRef[612];
+
 static int numCols;
 static int numIPLs;
+
+//----------------------------------------------------
 #endif // !CSTRUCTURES_S
