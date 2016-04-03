@@ -1,6 +1,6 @@
 /*
 cimulator plugin for SanAndreas Multiplayer
-Copyright (c) 2015 codectile
+Copyright (c) 2016 codectile
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -15,89 +15,15 @@ subject to the following restrictions:
 
 #pragma library	cimulator
 
-#define	CR_MAX_DYNAMIC	1000	//set it according to your own need, the max limit is 30000
-#define	CR_MAX_STATIC	1000	//set it according to your own need, the max limit is 30000
-
-
 #define ACTIVE_TAG	1 //property by which the collision volume can be activated again
 #define	DISABLE_DEACTIVATION	2 //will simulate for ever, increases cpu stress
 #define DISABLE_SIMULATION	3 //deactivates forever
 #define	ISLAND_SLEEPING	4 //bullet automatically does this so no need of using it
 #define	WANTS_DEACTIVATION	5 //tries to make the collision volume to go off to sleep
 
-static cr_newtime, cr_oldtime;
+#define USER_DATA_INT	1 //integer type
+#define USER_DATA_FLT	2 //float type
 
-
-/* Natives List:
- 
- * Static Object Natives
-
-		CR_CreateStaticCol
-		CR_RemoveStaticCol
-		CR_GetStaticColModel
-		CR_GetStaticColObject
-		CR_SetStaticColShape
-		CR_SetStaticOrigin
-		CR_GetStaticOrigin
-		CR_SetStaticRotation
-		CR_GetStaticRotation
-		CR_IsStaticIdxAvailable
-		CR_StaticContactTest
-
-  * Dynamic Object Natives
-
-		CR_CreateDynamicCol
-		CR_RemoveDynamicCol
-		CR_GetDynamicColModel
-		CR_GetDynamicColObject
-		CR_SetDynamicColShape
-		CR_SetDynamicOrigin
-		CR_GetDynamicOrigin
-		CR_SetDynamicRotation
-		CR_GetDynamicRotation
-		CR_IsDynamicIdxAvailable
-		CR_DynamicContactTest
-		CR_SetLinearVelocity
-		CR_GetLinearVelocity
-		CR_SetAngularVelocity
-		CR_GetAngularVelocity
-		CR_SetTorque
-		CR_SetFriction
-		CR_GetFriction
-		CR_SetRestitution
-		CR_GetRestitution
-		CR_IsActive
-		CR_Activate
-		CR_IsMoving
-		CR_SetMass
-		CR_GetMass
-		CR_GetTransform
-		CR_GetContactPoints
-
-  * World Natives
-		
-		CR_EnableSimulation
-		CR_DisableSimulation
-		CR_Load
-		CR_RemoveColMap
-		CR_SetWorldGravity
-		CR_GetWorldGravity
-		CR_RayTraceNormal
-		CR_RayTrace
-		CR_RayTraceEx
-		CR_RayTraceReflection
-		CR_GetBoundingSphere
-		CR_GetAABB
-		CR_GetNumCollisionObject
-		CR_GetNumChildShapes
-		CR_Simulator
-		CR_IsCompound
-		CR_Wait
-		CR_CharacterContactTest
-		CR_ContactTestEx
-		CR_FreeMemory
-		CR_GetTimeMilliseconds
-*/
 
 /*
  * stops the simulation
@@ -120,11 +46,11 @@ native CR_Load(Float:worldrest = 0.0);
  */
  native CR_RemoveColMap();
 
- /*
-  * removes the collision volumes for a given range and modelid
-  * To remove all models in a given range, use -1 as modelid in the function below
-  * The function must be used used after loading the map i.e. after using CR_Load
-  */
+/*
+ * removes the collision volumes for a given range and modelid
+ * To remove all models in a given range, use -1 as modelid in the function below
+ * The function must be used used after loading the map i.e. after using CR_Load
+ */
  native CR_RemoveBuilding(modelid, Float:x, Float:y, Float:z, Float:range);
 
 /*
@@ -140,27 +66,37 @@ native CR_GetWorldGravity(&Float:x, &Float:y, &Float:z);
 /*
  * shoots an invisible ray to a specified destination, returns the collision point if collided
  */
-native CR_RayTraceNormal(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3);
+native CR_RayCastNormal(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3);
 
 /*
  * same as above, returns the normal of the hit point
  */
-native CR_RayTrace(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3);
+native CR_RayCast(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3);
 
 /*
  * same as above, modelid is passed by reference.
  */
- native CR_RayTraceEx(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3, &modelid);
+ native CR_RayCastEx(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3, &modelid);
 
- /*
-  * passes the reflection vector and the angle by reference
-  */
-native CR_RayTraceReflection(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:rx, &Float:ry, &Float:rz, &Float:angle);
+/*
+ * passes the reflection vector and the angle by reference
+ */
+native CR_RayCastReflection(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:rx, &Float:ry, &Float:rz, &Float:angle);
 
 /*
  * passes the object's information by reference which the object hits
  */
-native CR_RayTraceObjectInfo(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &modelid, &Float:boundingRadius, &isStatic);
+native CR_RayCastObjectInfo(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &modelid, &Float:boundingRadius, &isStatic);
+
+/*
+ * returns the hitpoint and the integer object data set by the user
+ */
+native CR_RayCastIntData(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3, &data);
+
+/*
+ * returns the hitpoint and the float object data set by the user
+ */
+native CR_RayCastFloatData(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Float:z2, &Float:x3, &Float:y3, &Float:z3, &Float:data);
 
 /*
  * frees all the user created memory i.e. collision volumes
@@ -182,8 +118,9 @@ native CR_RayTraceObjectInfo(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, F
 
 /*
  * creates a dynamic collision volume, set inertia  = 1 to use inertia, for tags look to their definitions
+ * inertia is set to 0 by default, it's good for roleplaying servers if you only want to simulate tossing of objects
  */
-native CR_CreateDynamicCol(index, objectid, modelid, Float:mass, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, tag = ACTIVE_TAG);
+native CR_CreateDynamicCol(index, objectid, modelid, Float:mass, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, inertia = 0, tag = ACTIVE_TAG);
 
 /*
  * creates a static collision volume
@@ -228,7 +165,7 @@ native CR_SetStaticColShape(index, modelid);
 native CR_GetBoundingSphere(modelid, &Float:x, &Float:y, &Float:z, &Float:radius);
 
 /*
- * returns thr axi-aligned bounding box of the modelid
+ * returns the axi-aligned bounding box of the modelid
  */
 native CR_GetAABB(modelid, &Float:minx, &Float:miny, &Float:minz, &Float:maxx, &Float:maxy, &Float:maxz);
 
@@ -325,12 +262,12 @@ native Float:CR_GetRestitution(index);
 /*
  * checks whether a dynamic index is available or not
  */
- native CR_IsDynamicIdxAvailable(index);
+ native CR_IsDynamicSlotUsed(index);
 
  /*
  * checks whether a static index is available or not
  */
- native CR_IsStaticIdxAvailable(index);
+ native CR_IsStaticSlotUsed(index);
 
 /*
  * checks whether is the collision volume is active or not
@@ -377,24 +314,15 @@ native CR_IsCompound(modelid);
 native CR_Wait(ms);
 
 /*
- * creates a ghost objects which records it overlapping objects
- */
-native CR_CreateGhost(ghostIndex, modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
-
-/*
- * returns number of overlapping objects of the created ghost object
- */
-native CR_GetNumOverlappingObjects(ghostIndex);
-
-/*
  * checks whether a dynamic collision volume is colliding or not
  */
 native CR_DynamicContactTest(index);
 
 /*
  * checks whether a static collision volume is colliding or not
+ * Removed( version 1.07 ), use CR_ContactTestEx instead
  */
-native CR_StaticContactTest(index);
+//native CR_StaticContactTest(index);
 
 /*
  * predicts whether a modelid will be colliding at a specific orientation or not
@@ -430,6 +358,48 @@ native CR_GetDynamicColObject(index);
 native CR_GetStaticColObject(index);
 
 /*
+ * Sets the data according to the user for a dynamic collision volume
+ * Pass only one value in the third parameter, values after the third argument won't be considered
+ */
+native CR_SetDynamicUserData(index, type, {Float,_}:...);
+
+/*
+ * Sets the data according to the user for a static collision volume
+ * Pass only one value in the third parameter, values after the third argument won't be considered
+ */
+native CR_SetStaticUserData(index, type, {Float,_}:...);
+
+/*
+ * passes the integer data set by the user for a dynamic collision volume by reference
+ */
+native CR_GetDynamicInt(index, &data);
+
+/*
+ * passes the float data set by the user for a dynamic collision volume by reference
+ */
+native CR_GetDynamicFloat(index, &Float:data);
+
+/*
+ * passes the integer data set by the user for a static collision volume by reference
+ */
+native CR_GetStaticInt(index, &data);
+
+/*
+ * passes the float data set by the user for a static collision volume by reference
+ */
+native CR_GetStaticFloat(index, &Float:data);
+
+/*
+ * returns the pool size for static collision volumes
+ */
+native CR_GetStaticPool();
+
+/*
+ * returns the pool size for dynamic collision volumes
+ */
+native CR_GetDynamicPool();
+
+/*
  * creates precise vehicle collision
  */
 native CR_CreateVehicleCol(index, vehicleid, modelid, Float:x, Float:y, Float:z, Float:qx, Float:qy, Float:qz, Float:qw);
@@ -462,12 +432,12 @@ native CR_GetVehicleRotation(index, &Float:qx, &Float:qy, &Float:qz, &Float:qw);
 /*
  * verify whether the index is available for creation of collision volume
  */
-native CR_IsVehicleIndexAvailable(index);
+native CR_IsVehicleSlotUsed(index);
 
 /*
  * checks whether the vehicle is in contact with any other object/world
  */
-native CR_VehicleContactTest(index);
+native CR_VehicleContactTest(modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
 
 /*
  * sets the tansform of the collision volume and the object passed
@@ -502,7 +472,7 @@ stock CR_UpdateTransform(index)
  */
 stock CR_ProcessItems()
 {
-	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
+	for(new i = 0; i <= CR_GetDynamicPool(); i++)
 		CR_UpdateTransform(i);
 }
 
@@ -511,7 +481,7 @@ stock CR_ProcessItems()
  */
 stock CR_DestroyAllColVolumes()
 {
-	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
+	for(new i = 0; i <= CR_GetDynamicPool(); i++)
 	{
 	    if(IsValidDynamicObject(CR_GetDynamicColObject(i)))
 		{
@@ -520,7 +490,7 @@ stock CR_DestroyAllColVolumes()
 		}
 	}
 
-	for(new i = 0; i < CR_MAX_STATIC; i++)
+	for(new i = 0; i <= CR_GetStaticPool(); i++)
 	{
 	    if(IsValidDynamicObject(CR_GetStaticColObject(i)))
 		{
@@ -561,10 +531,10 @@ stock CR_DestroyStaticCol(index)
  */
 stock CR_FlushMemory()
 {
-	for(new i = 0; i < CR_MAX_DYNAMIC; i++)
+	for(new i = 0; i <= CR_GetDynamicPool(); i++)
 		if(IsValidDynamicObject(CR_GetDynamicColObject(i)))
 			DestroyDynamicObject(CR_GetDynamicColObject(i));
-	for(new i = 0; i < CR_MAX_STATIC; i++)
+	for(new i = 0; i <= CR_GetStaticPool(); i++)
 		if(IsValidDynamicObject(CR_GetStaticColObject(i)))
 			DestroyDynamicObject(CR_GetStaticColObject(i));
 	CR_FreeMemory();
@@ -577,9 +547,9 @@ forward CR_ProcessSimulation();
 public	CR_ProcessSimulation()
 {
 	CR_ProcessItems();
-	cr_newtime = GetTickCount();
-	CR_Simulator(cr_newtime, cr_oldtime);
-	cr_oldtime = cr_newtime;
+	//cr_newtime = GetTickCount();
+	//CR_Simulator(cr_newtime, cr_oldtime);
+	//cr_oldtime = cr_newtime;
 }
 
 /*
@@ -589,12 +559,12 @@ public	CR_ProcessSimulation()
  // throws an object
  stock CR_ThrowObject(playerid, index, Float:speed)
  {
-	if(IsDynamicIdxAvailable(index))
+	if(CR_IsDynamicSlotUsed(index))
 	{
-		new Float:pos[3], Float:angle;
+		Streamer_Update(playerid);
+		new Float:angle;
 		GetPlayerFacingAngle(playerid, angle);
-		GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
-		CR_SetLinearVelocity(index, speed * floatsin(-angle, degrees), speed * floatcos(-angle, degrees), 0.f);
+		CR_SetLinearVelocity(index, speed * floatsin(-angle, degrees), speed * floatcos(-angle, degrees), 1.7);
 		return 1;
 	}
 	return 0;
@@ -606,23 +576,23 @@ public	CR_ProcessSimulation()
 	new Float:x, Float:y, Float:z, Float:facing;
 	GetPlayerPos(playerid, x, y, z);
 	GetPlayerFacingAngle(playerid, facing);
-	if(CR_RayTraceObjectInfo(x, y, z, x + distance * floatsin(-facing, degrees), y + distance * floatcos(-facing, degrees), z, modelid, boundingRadius, isStatic))
+	if(CR_RayCastObjectInfo(x, y, z, x + distance * floatsin(-facing, degrees), y + distance * floatcos(-facing, degrees), z, modelid, boundingRadius, isStatic))
 		return 1;
 	return 0;
  }
 
  // places an object on the ground, the object must be above the ground
- stock CR_PlaceDynamicObjectOnGround(objectid)
+ stock CR_PlaceObjectOnGround(objectid)
  {
 	new Float:x, Float:y, Float:z;
 	GetDynamicObjectPos(objectid, x, y, z);
-	CR_RayTrace(x, y, z, x, y, z - 10000000.0, x, y, z);
+	CR_RayCast(x, y, z, x, y, z - 10000000.0, x, y, z);
 	SetDynamicObjectPos(objectid, x, y, z);
  }
 
  stock CR_FindZ_For2D(Float:x, Float:y, &Float:z)
  {
-	if(CR_RayTrace(x, y, 1000.0, x, y, (direction * 10000000.0), x, y, z))
+	if(CR_RayCast(x, y, 1000.0, x, y, (direction * 10000000.0), x, y, z))
 		return 1;
 	return 0;
  }
@@ -633,24 +603,3 @@ public	CR_ProcessSimulation()
  */
 
  forward CR_OnCollisionOccur(modelid0, modelid1);
-
-/*
- * hooking OnGameModeInit()
- */
-public OnGameModeInit()
-{
-	cr_newtime = cr_oldtime = GetTickCount();
-    #if defined CR_OnGameModeInit
-        CR_OnGameModeInit();
-    #endif
-    return 1;
-}
-#if defined _ALS_OnGameModeInit
-    #undef OnGameModeInit
-#else
-    #define _ALS_OnGameModeInit
-#endif
-#define OnGameModeInit CR_OnGameModeInit
-#if defined CR_OnGameModeInit
-    forward CR_OnGameModeInit();
-#endif
