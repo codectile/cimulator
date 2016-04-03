@@ -22,10 +22,23 @@ subject to the following restrictions:
 #include <vector>
 #include "CCollision.h"
 #include "CDynamics.h"
-#define VERSION	1.05
+#define VERSION	1.07
 #define SAFE_DELETE(pointer)	if(pointer){ delete pointer; pointer = NULL;}
+#define USER_DATA_INT	1
+#define USER_DATA_FLT	2
 #ifndef _WIN32
+#include <sys/time.h>
+
+unsigned long long GetTickCount()
+{
+	struct timeval tv;
+	if (gettimeofday(&tv, NULL) != 0)
+		return 0;
+
+	return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
 #define SLEEP(ms) usleep(x * 1000)
+#define DWORD	unsigned long
 #define OS	"Linux"
 #else
 #include <Windows.h>
@@ -33,11 +46,10 @@ subject to the following restrictions:
 #define OS "Windows"
 #endif // !_WIN32
 
-#define SIMD_DEG_TO_RAD	 btScalar(0.01745329251994329576923690768489)
-#define SIMD_RADIAN_TO_DEG	 btScalar(57.295779513082320876798154814105)
-
 #define CRMAX_BODY	30000
 #define CRMAX_GHOST	30000
+
+#define INVALIDITY_CHECK(x, y)	if ((x <= -1) && (x >= CRMAX_BODY))	return y
 
 btBroadphaseInterface* broadphase;
 btDefaultCollisionConfiguration* collisionConfiguration;
@@ -60,6 +72,9 @@ public:
 		index = -1;
 		modelid = -1;
 		objectid = -1;
+		UserData *pUD = NULL;
+		pUD = (UserData*)col->getUserPointer();
+		SAFE_DELETE(pUD);
 		dynamicsWorld->removeRigidBody(col);
 		delete col->getMotionState();
 		delete col;
@@ -83,6 +98,9 @@ public:
 		modelid = -1;
 		objectid = -1;
 		dynamicsWorld->removeCollisionObject(col);
+		UserData *pUD = NULL;
+		pUD = (UserData*)col->getUserPointer();
+		SAFE_DELETE(pUD);
 		delete col;
 		col = NULL;
 	}
@@ -113,7 +131,6 @@ public:
 DynamicObject* rigidBody[CRMAX_BODY];
 StaticObject* staticBody[CRMAX_BODY];
 VehicleObject* vehicleBody[CRMAX_BODY];
-btGhostObject* ghost[CRMAX_GHOST];
 
 btClock* clock;
 
@@ -129,7 +146,13 @@ static int index_availability_static[CRMAX_BODY];
 static int index_availability_dynamic[CRMAX_BODY];
 static int index_availability_vehicle[CRMAX_BODY];
 static int simFlag = 0;
+static unsigned long long Newtime = 0;
+static unsigned long long Oldtime = 0;
 
-//declaration
+//declarations
 bool OnCollisionOccur(btManifoldPoint& cp, void* body0, void* body1);
+int GetEmptyDynamicIndex();
+int GetEmptyStaticIndex();
+int GetDynamicPoolSize();
+int GetStaticPoolSize();
 #endif // !CNATIVES_H
