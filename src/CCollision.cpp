@@ -13,21 +13,26 @@ subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "CStructures.h"
 #include <fstream>
+#include "CStructures.h"
 #include "btBulletDynamicsCommon.h"
-#include "BulletCollision\CollisionDispatch\btGhostObject.h"
 #include "CCollision.h"
 #include <vector>
 
-#define SIMD_DEG_TO_RAD	 btScalar(0.01745329251994329576923690768489)
-#define SIMD_RADIAN_TO_DEG	 btScalar(57.295779513082320876798154814105)
+//------definitions and declarations-------
+btCompoundShape* static_shapes = NULL;
+btCompoundShape* dynamic_shapes = NULL;
+btCompoundShape* vehicle_shapes_st = NULL;
+btCompoundShape* vehicle_shapes_dn = NULL;
+
+uint16_t vehicleRef[612];
 
 std::vector<btCollisionObject*> cache_bodies;
 
 ColData* cData;
 cINST* inst;
 TVehicle* vehicle_col;
+//------------------------------------------
 
 int cr_readCadb()
 {
@@ -118,7 +123,6 @@ int cr_readCCF()
 					for (int s = 0; s < vehicle_col[i].m_numspheres; s++)
 					{
 						file.read(reinterpret_cast<char*>(&vehicle_col[i].spheres[s]), 16);
-						//file.read(reinterpret_cast<char*>(&vehicle_col[i].spheres[s].radius), 4);
 					}
 				}
 
@@ -149,7 +153,8 @@ int cr_readCCF()
 
 void cr_createColVehicle()
 {
-	vehicle_shapes = new btCompoundShape[211];
+	vehicle_shapes_st = new btCompoundShape[211];
+	vehicle_shapes_dn = new btCompoundShape[211];
 	btQuaternion zero(0, 0, 0, 1);
 	for (int i = 0; i < 211; i++)
 	{
@@ -158,7 +163,8 @@ void cr_createColVehicle()
 			for (int s = 0; s < vehicle_col[i].m_numspheres; s++)
 			{
 				btSphereShape* sphere = new btSphereShape(vehicle_col[i].spheres[s].radius);
-				vehicle_shapes[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].spheres[s].center.x, vehicle_col[i].spheres[s].center.y, vehicle_col[i].spheres[s].center.z)), sphere);
+				vehicle_shapes_dn[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].spheres[s].center.x, vehicle_col[i].spheres[s].center.y, vehicle_col[i].spheres[s].center.z)), sphere);
+				vehicle_shapes_st[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].spheres[s].center.x, vehicle_col[i].spheres[s].center.y, vehicle_col[i].spheres[s].center.z)), sphere);
 			}
 		}
 
@@ -167,13 +173,15 @@ void cr_createColVehicle()
 			for (int b = 0; b < vehicle_col[i].m_numboxes; b++)
 			{
 				btBoxShape* box = new btBoxShape(btVector3(vehicle_col[i].boxes[b].size.x, vehicle_col[i].boxes[b].size.y, vehicle_col[i].boxes[b].size.z));
-				vehicle_shapes[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].boxes[b].center.x, vehicle_col[i].boxes[b].center.y, vehicle_col[i].boxes[b].center.z)), box);
+				vehicle_shapes_dn[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].boxes[b].center.x, vehicle_col[i].boxes[b].center.y, vehicle_col[i].boxes[b].center.z)), box);
+				vehicle_shapes_st[i].addChildShape(btTransform(zero, btVector3(vehicle_col[i].boxes[b].center.x, vehicle_col[i].boxes[b].center.y, vehicle_col[i].boxes[b].center.z)), box);
 			}
 		}
 
 		if (vehicle_col[i].m_numfaces > 0)
 		{
 			btTriangleMesh* trimesh = new btTriangleMesh();
+			btBvhTriangleMeshShape* mesh;
 			btConvexTriangleMeshShape* convex;
 			for (int f = 0; f < vehicle_col[i].m_numfaces; f++)
 			{
@@ -182,8 +190,10 @@ void cr_createColVehicle()
 					btVector3(vehicle_col[i].faces[f].v2.x, vehicle_col[i].faces[f].v2.y, vehicle_col[i].faces[f].v2.z));
 			}
 
+			mesh = new btBvhTriangleMeshShape(trimesh, true);
 			convex = new btConvexTriangleMeshShape(trimesh);
-			vehicle_shapes[i].addChildShape(btTransform(zero, btVector3(0, 0, 0)), convex);
+			vehicle_shapes_dn[i].addChildShape(btTransform(zero, btVector3(0, 0, 0)), convex);
+			vehicle_shapes_st[i].addChildShape(btTransform(zero, btVector3(0, 0, 0)), mesh);
 		}
 	}
 
@@ -197,10 +207,9 @@ btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWo
 {
 	int index = vehicleRef[modelid];
 	btCollisionObject* collision = new btCollisionObject();
-	collision->setCollisionShape((btCompoundShape*)(&vehicle_shapes[index]));
+	collision->setCollisionShape((btCompoundShape*)(&vehicle_shapes_st[index]));
 	collision->setCollisionFlags(1);
 	collision->setWorldTransform(btTransform(rotation, position));
-	collision->setActivationState(ACTIVE_TAG);
 	collision->setUserIndex(modelid);
 	dynamicsWorld->addCollisionObject(collision);
 	return collision;
@@ -330,26 +339,32 @@ btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld,
 	btQuaternion rot;
 	rot.setEuler(rotation.getZ() * SIMD_DEG_TO_RAD, rotation.getY() * SIMD_DEG_TO_RAD, rotation.getX() * SIMD_DEG_TO_RAD);
 	btCollisionObject* collision = new btCollisionObject();
-	collision->setCollisionShape((btCompoundShape*)(&dynamic_shapes[modelid]));
+	collision->setCollisionShape((btCompoundShape*)(&static_shapes[modelid]));
 	collision->setCollisionFlags(1);
 	collision->setWorldTransform(btTransform(rot, position));
-	collision->setActivationState(ACTIVE_TAG);
+	//user data
+	UserData* uData = new UserData();
+	collision->setUserPointer(uData);
 	dynamicsWorld->addCollisionObject(collision);
 	return collision;
 }
 
-btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int state)
+btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int inertia, int state)
 {
 	btQuaternion rot;
 	rot.setEuler(rotation.getZ() * SIMD_DEG_TO_RAD, rotation.getY() * SIMD_DEG_TO_RAD, rotation.getX() * SIMD_DEG_TO_RAD);
 	btMotionState* motionState = new btDefaultMotionState(btTransform(rot, position));
-	btVector3 inertia(0, 0, 0);
+	btVector3 localInertia(0, 0, 0);
 	if (mass <= 0.f)
 		mass = 1.f; //for dynamic objects mass cannot be zero
-	dynamic_shapes[modelid].calculateLocalInertia(mass, inertia);
-	btRigidBody::btRigidBodyConstructionInfo information(mass, motionState, (btCompoundShape*)(&dynamic_shapes[modelid]), inertia);
+	if (inertia)
+		dynamic_shapes[modelid].calculateLocalInertia(mass, localInertia);
+	btRigidBody::btRigidBodyConstructionInfo information(mass, motionState, (btCompoundShape*)(&dynamic_shapes[modelid]), localInertia);
 	btRigidBody* rigidBody = new btRigidBody(information);
 	rigidBody->setActivationState(state);
+	//user data
+	UserData* uData = new UserData();
+	rigidBody->setUserPointer(uData);
 	dynamicsWorld->addRigidBody(rigidBody);
 	return rigidBody;
 }
@@ -447,34 +462,4 @@ btCollisionObject* cr_createCapsuleCharacter(btDiscreteDynamicsWorld* dynamicsWo
 	character->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), position));
 	character->setCollisionShape(capsuleApproximation);
 	return character;
-}
-
-
-btGhostObject* cr_createGhost(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotation)
-{
-	btGhostObject* ghost = new btGhostObject();
-	ghost->setCollisionShape((btCompoundShape*)(&static_shapes[modelid]));
-	ghost->setCollisionFlags(ghost->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
-	btQuaternion quat;
-	quat.setEuler(rotation.getX(), rotation.getY(), rotation.getZ());
-	ghost->setWorldTransform(btTransform(quat, position));
-	dynamicsWorld->addCollisionObject(ghost, btBroadphaseProxy::DefaultFilter, btBroadphaseProxy::AllFilter);
-	return ghost;
-}
-
-void cr_removeGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost)
-{
-	dynamicsWorld->removeCollisionObject(ghost);
-}
-
-void cr_deleteGhost(btDiscreteDynamicsWorld* dynamicsWorld, btGhostObject* ghost)
-{
-	dynamicsWorld->removeCollisionObject(ghost);
-	//delete ghost->getCollisionShape(); potential crash
-	delete ghost;
-}
-
-int cr_getNumOverlappingObjects(btGhostObject* ghost)
-{
-	return ghost->getNumOverlappingObjects();
 }
