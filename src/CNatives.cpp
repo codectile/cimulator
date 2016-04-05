@@ -230,8 +230,8 @@ cell AMX_NATIVE_CALL CR_CreateDynamicCol(AMX* amx, cell* params)
 		logprintf("cimulator::maximum dynamic object reached");
 		return -1;
 	}
-	rigidBody[index] = new DynamicObject(index, params[2], params[3], cr_addDynamicCollision(dynamicsWorld, params[3], amx_ctof(params[4]), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])), btVector3(amx_ctof(params[8]), amx_ctof(params[9]), amx_ctof(params[10])), params[11], params[12]));
-	rigidBody[index]->col->setUserIndex(params[3]); //set the modelid
+	rigidBody[index] = new DynamicObject(index, params[1], params[2], cr_addDynamicCollision(dynamicsWorld, params[2], amx_ctof(params[3]), btVector3(amx_ctof(params[4]), amx_ctof(params[5]), amx_ctof(params[6])), btVector3(amx_ctof(params[7]), amx_ctof(params[8]), amx_ctof(params[9])), params[10], params[11]));
+	rigidBody[index]->col->setUserIndex(params[2]); //set the modelid
 	index_availability_dynamic[index] = 0; //make it unavailable
 	return index;
 }
@@ -250,10 +250,10 @@ cell AMX_NATIVE_CALL CR_CreateStaticCol(AMX* amx, cell* params)
 		logprintf("cimulator::maximum static object reached");
 		return -1;
 	}
-	staticBody[index] = new StaticObject(index, params[2], params[3], cr_addStaticCollision(dynamicsWorld, params[3], btVector3(amx_ctof(params[4]), amx_ctof(params[5]), amx_ctof(params[6])), btVector3(amx_ctof(params[7]), amx_ctof(params[8]), amx_ctof(params[9]))));
-	staticBody[index]->col->setUserIndex(params[3]); //set the modelid
+	staticBody[index] = new StaticObject(index, params[1], params[2], cr_addStaticCollision(dynamicsWorld, params[2], btVector3(amx_ctof(params[3]), amx_ctof(params[4]), amx_ctof(params[5])), btVector3(amx_ctof(params[6]), amx_ctof(params[7]), amx_ctof(params[8]))));
+	staticBody[index]->col->setUserIndex(params[2]); //set the modelid
 	index_availability_static[index] = 0; //make it unavailable
-	return 1;
+	return index;
 }
 
 // removes the dynamic collision volume from the world
