@@ -119,13 +119,17 @@ native CR_RayCastFloatData(Float:x1, Float:y1, Float:z1, Float:x2, Float:y2, Flo
 /*
  * creates a dynamic collision volume, set inertia  = 1 to use inertia, for tags look to their definitions
  * inertia is set to 0 by default, it's good for roleplaying servers if you only want to simulate tossing of objects
+ * Here yaw is the z axis, pitch is the y axis, roll is the x axis
+ * return value: index/collision id
  */
-native CR_CreateDynamicCol(index, objectid, modelid, Float:mass, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, inertia = 0, tag = ACTIVE_TAG);
+native CR_CreateDynamicCol(objectid, modelid, Float:mass, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, inertia = 0, tag = ACTIVE_TAG);
 
 /*
  * creates a static collision volume
+ * Here yaw is the z axis, pitch is the y axis, roll is the x axis
+ * return value: index/collision id
  */
-native CR_CreateStaticCol(index, objectid, modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
+native CR_CreateStaticCol(objectid, modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
 
 /*
  * returns modelid of the dynamic collision volume
