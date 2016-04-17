@@ -227,7 +227,7 @@ cell AMX_NATIVE_CALL CR_CreateDynamicCol(AMX* amx, cell* params)
 	int index = GetEmptyDynamicIndex();
 	if (index == -1)
 	{
-		logprintf("cimulator::maximum dynamic object reached");
+		logprintf("cimulator::maximum dynamic collision reached");
 		return -1;
 	}
 	rigidBody[index] = new DynamicObject(index, params[1], params[2], cr_addDynamicCollision(dynamicsWorld, params[2], amx_ctof(params[3]), btVector3(amx_ctof(params[4]), amx_ctof(params[5]), amx_ctof(params[6])), btVector3(amx_ctof(params[7]), amx_ctof(params[8]), amx_ctof(params[9])), params[10], params[11]));
@@ -247,7 +247,7 @@ cell AMX_NATIVE_CALL CR_CreateStaticCol(AMX* amx, cell* params)
 	int index = GetEmptyStaticIndex();
 	if (index == -1)
 	{
-		logprintf("cimulator::maximum static object reached");
+		logprintf("cimulator::maximum static collision reached");
 		return -1;
 	}
 	staticBody[index] = new StaticObject(index, params[1], params[2], cr_addStaticCollision(dynamicsWorld, params[2], btVector3(amx_ctof(params[3]), amx_ctof(params[4]), amx_ctof(params[5])), btVector3(amx_ctof(params[6]), amx_ctof(params[7]), amx_ctof(params[8]))));
@@ -383,14 +383,14 @@ cell AMX_NATIVE_CALL CR_GetAABB(AMX* amx, cell* params)
 {
 	INVALIDITY_CHECK(params[1], 0);
 	btVector3 aabbmin, aabbmax;
-	cr_getAABB(params[1], aabbmin, aabbmax); //provides the max and min vertices
+	cr_getAABB(params[1], btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4])), btVector3(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7])), aabbmin, aabbmax); //provides the max and min vertices
 	cell* addr[6];
-	amx_GetAddr(amx, params[2], &addr[0]);
-	amx_GetAddr(amx, params[3], &addr[1]);
-	amx_GetAddr(amx, params[4], &addr[2]);
-	amx_GetAddr(amx, params[5], &addr[3]);
-	amx_GetAddr(amx, params[6], &addr[4]);
-	amx_GetAddr(amx, params[7], &addr[5]);
+	amx_GetAddr(amx, params[8], &addr[0]);
+	amx_GetAddr(amx, params[9], &addr[1]);
+	amx_GetAddr(amx, params[10], &addr[2]);
+	amx_GetAddr(amx, params[11], &addr[3]);
+	amx_GetAddr(amx, params[12], &addr[4]);
+	amx_GetAddr(amx, params[13], &addr[5]);
 	*addr[0] = amx_ftoc(aabbmin.getX());
 	*addr[1] = amx_ftoc(aabbmin.getY());
 	*addr[2] = amx_ftoc(aabbmin.getZ());
@@ -901,13 +901,19 @@ cell AMX_NATIVE_CALL CR_FreeMemory(AMX* amx, cell* params)
 		{
 			index_availability_dynamic[i] = 1;
 			SAFE_DELETE(rigidBody[i]);
-			//logprintf("Deleted Dynamic id: %i", i);
+			//logprintf("Deleted Dynamic col id: %i", i);
 		}
 		if (staticBody[i])
 		{
 			index_availability_static[i] = 1;
 			SAFE_DELETE(staticBody[i]);
-			//logprintf("Deleted Static id: %i", i);
+			//logprintf("Deleted Static col id: %i", i);
+		}
+		if (vehicleBody[i])
+		{
+			index_availability_vehicle[i] = 1;
+			SAFE_DELETE(vehicleBody[i]);
+			//logprintf("Deleted Vehicle col id: %i", i);
 		}
 	}
 	return 1;
@@ -934,17 +940,18 @@ cell AMX_NATIVE_CALL CR_GetDynamicPool(AMX* amx, cell* params)
 // create vehicle collision chassis
 cell AMX_NATIVE_CALL CR_CreateVehicleCol(AMX* amx, cell* params)
 {
-	INVALIDITY_CHECK(params[1], 0);
-	if (index_availability_vehicle[params[1]])
+	int index = GetEmptyVehicleIndex();
+	logprintf("Index: %i", index);
+	if (index == -1)
 	{
-		//thanks to pottus for letting me know the truth about the W component of GTA:SA's quaternion system
-		btQuaternion quat(amx_ctof(params[7]), amx_ctof(params[8]), amx_ctof(params[9]), -amx_ctof(params[10]));
-		vehicleBody[params[1]] = new VehicleObject(params[1], params[2], params[3], cr_createVehicleCollision(dynamicsWorld, params[3], btVector3(amx_ctof(params[4]), amx_ctof(params[5]), amx_ctof(params[6])), quat));
-		index_availability_vehicle[params[1]] = 0;
+		logprintf("cimulator::maximum vehicle collision reached");
+		return -1;
 	}
-	else
-		logprintf("cimulator::vehicle collision object is already in use");
-	return 1;
+	//thanks to pottus for letting me know the truth about the W component of GTA:SA's quaternion system
+	btQuaternion quat(amx_ctof(params[6]), amx_ctof(params[7]), amx_ctof(params[8]), -amx_ctof(params[9]));
+	vehicleBody[index] = new VehicleObject(index, params[1], params[2], cr_createVehicleCollision(dynamicsWorld, params[2], btVector3(amx_ctof(params[3]), amx_ctof(params[4]), amx_ctof(params[5])), quat));
+	index_availability_vehicle[index] = 0;
+	return index;
 }
 
 // removes vehicle collision
@@ -953,7 +960,6 @@ cell AMX_NATIVE_CALL CR_RemoveVehicleCol(AMX* amx, cell* params)
 	INVALIDITY_CHECK(params[1], 0);
 	if (!index_availability_vehicle[params[1]])
 	{
-		cr_removeVehicleCol(dynamicsWorld, vehicleBody[params[1]]->col); //remove the body from the world
 		index_availability_vehicle[params[1]] = 1; //make it available
 		SAFE_DELETE(vehicleBody[params[1]]);
 		SLEEP(15); //wait...
@@ -1039,6 +1045,20 @@ cell AMX_NATIVE_CALL CR_IsVehicleSlotUsed(AMX* amx, cell* params)
 	return (index_availability_vehicle[params[1]] ? 0 : 1);
 }
 
+// returns the vehicle id hooked to the vehicle collision volume
+cell AMX_NATIVE_CALL CR_GetVehicleID(AMX* amx, cell* params)
+{
+	INVALIDITY_CHECK(params[1], 0);
+	return vehicleBody[params[1]]->vehicleid;
+}
+
+// returns the model id hooked to the vehicle collision volume
+cell AMX_NATIVE_CALL CR_GetVehicleModel(AMX* amx, cell* params)
+{
+	INVALIDITY_CHECK(params[1], 0);
+	return vehicleBody[params[1]]->modelid;
+}
+
 // checks whether a vehicle collision is in contact or not
 cell AMX_NATIVE_CALL CR_VehicleContactTest(AMX* amx, cell* params)
 {
@@ -1052,8 +1072,51 @@ cell AMX_NATIVE_CALL CR_VehicleContactTest(AMX* amx, cell* params)
 	object->setCollisionFlags(1);
 	object->setWorldTransform(btTransform(rot, btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]))));
 	dynamicsWorld->contactTest(vehicleBody[params[1]]->col, callback);
-	delete object;
+	SAFE_DELETE(object);
 	return callback.hits;
+}
+
+// returns the highest valid vehicle collision id
+cell AMX_NATIVE_CALL CR_GetVehiclePool(AMX* amx, cell* params)
+{
+	return GetVehiclePoolSize();
+}
+
+// helps to place an object on the ground correctly
+cell AMX_NATIVE_CALL CR_PlacementCorrection(AMX* amx, cell* params)
+{
+	btCollisionObject *object = new btCollisionObject();
+	object->setCollisionShape((btCompoundShape*)&static_shapes[params[1]]);
+	object->setCollisionFlags(1);
+	btQuaternion quat;
+	quat.setEulerZYX(amx_ctof(params[5]), amx_ctof(params[6]), amx_ctof(params[7]));
+	btVector3 pos = btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]));
+	object->setWorldTransform(btTransform(quat, pos));
+	dynamicsWorld->addCollisionObject(object);
+	btVector3 end = pos;
+
+	btVector3 center;
+	btScalar radius;
+	object->getCollisionShape()->getBoundingSphere(center, radius);
+
+	pos.setZ(pos.getZ() - radius);
+	end.setZ(pos.getZ() - btScalar(1000000));
+	btVector3 hit;
+
+	btScalar dz = 0.f;
+	if (cr_rayCast(dynamicsWorld, pos, end, hit))
+	{
+		pos = hit;
+		hit.setZ(hit.getZ() + btScalar(0.0001));
+		pos = btVector3(amx_ctof(params[2]), amx_ctof(params[3]), amx_ctof(params[4]));
+		if (cr_rayCast(dynamicsWorld, hit, pos, end))
+		{
+			dz = (hit.getZ() - btScalar(0.0001)) + (pos.getZ() - end.getZ());
+		}
+	}
+	dynamicsWorld->removeCollisionObject(object);
+	SAFE_DELETE(object);
+	return amx_ftoc(dz);
 }
 
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports()
@@ -1127,6 +1190,7 @@ PLUGIN_EXPORT void PLUGIN_CALL Unload()
 
 	delete[] * rigidBody;
 	delete[] * staticBody;
+	delete[] * vehicleBody;
 
 	delete[] static_shapes;
 	delete[] dynamic_shapes;
@@ -1221,6 +1285,7 @@ AMX_NATIVE_INFO PluginNatives[] =
 	{ "CR_GetTimeMilliseconds", CR_GetTimeMilliseconds },
 	{ "CR_GetStaticPool", CR_GetStaticPool },
 	{ "CR_GetDynamicPool", CR_GetDynamicPool },
+	{ "CR_PlacementCorrection", CR_PlacementCorrection },
 
 	//vehicle related natives
 	{ "CR_CreateVehicleCol", CR_CreateVehicleCol },
@@ -1231,6 +1296,9 @@ AMX_NATIVE_INFO PluginNatives[] =
 	{ "CR_GetVehicleRotation", CR_GetVehicleRotation },
 	{ "CR_IsVehicleSlotUsed", CR_IsVehicleSlotUsed },
 	{ "CR_VehicleContactTest", CR_VehicleContactTest },
+	{ "CR_GetVehiclePool", CR_GetVehiclePool },
+	{ "CR_GetVehicleID", CR_GetVehicleID },
+	{ "CR_GetVehicleModel", CR_GetVehicleModel },
 	{ 0, 0 }
 };
 
@@ -1253,7 +1321,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 		for (unsigned int i = 0; i < amxList.size(); i++)
 		{
 			int idx;
-			if (!amx_FindPublic(amxList[i], "CR_ProcessSimulation", &idx))
+			if (!amx_FindPublic(amxList[i], "CR_ProcessItems", &idx))
 			{
 				amx_Exec(amxList[i], NULL, idx);
 				Newtime = GetTickCount64();
@@ -1301,6 +1369,14 @@ int GetEmptyStaticIndex()
 	return -1;
 }
 
+int GetEmptyVehicleIndex()
+{
+	for (int i = 0; i < CRMAX_BODY; i++)
+		if (index_availability_vehicle[i])
+			return i;
+	return -1;
+}
+
 int GetDynamicPoolSize()
 {
 	int max = 0;
@@ -1316,6 +1392,16 @@ int GetStaticPoolSize()
 	int max = 0;
 	for (int i = 0; i < CRMAX_BODY; i++)
 		if (!index_availability_static[i])
+			if (max < i)
+				max = i;
+	return max;
+}
+
+int GetVehiclePoolSize()
+{
+	int max = 0;
+	for (int i = 0; i < CRMAX_BODY; i++)
+		if (!index_availability_vehicle[i])
 			if (max < i)
 				max = i;
 	return max;
