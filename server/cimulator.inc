@@ -24,6 +24,9 @@ subject to the following restrictions:
 #define USER_DATA_INT	1 //integer type
 #define USER_DATA_FLT	2 //float type
 
+#if !defined IsValidVehicle
+native IsValidVehicle(vehicleid);
+#endif
 
 /*
  * stops the simulation
@@ -171,7 +174,7 @@ native CR_GetBoundingSphere(modelid, &Float:x, &Float:y, &Float:z, &Float:radius
 /*
  * returns the axi-aligned bounding box of the modelid
  */
-native CR_GetAABB(modelid, &Float:minx, &Float:miny, &Float:minz, &Float:maxx, &Float:maxy, &Float:maxz);
+native CR_GetAABB(modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll, &Float:minx, &Float:miny, &Float:minz, &Float:maxx, &Float:maxy, &Float:maxz);
 
 /*
  * returns the position and rotation of collision volume
@@ -364,12 +367,14 @@ native CR_GetStaticColObject(index);
 /*
  * Sets the data according to the user for a dynamic collision volume
  * Pass only one value in the third parameter, values after the third argument won't be considered
+ * Set the type parameter to USER_DATA_INT/USER_DATA_FLT for storing an integer/float value
  */
 native CR_SetDynamicUserData(index, type, {Float,_}:...);
 
 /*
  * Sets the data according to the user for a static collision volume
  * Pass only one value in the third parameter, values after the third argument won't be considered
+ * Set the type parameter to USER_DATA_INT/USER_DATA_FLT for storing an integer/float value
  */
 native CR_SetStaticUserData(index, type, {Float,_}:...);
 
@@ -404,9 +409,14 @@ native CR_GetStaticPool();
 native CR_GetDynamicPool();
 
 /*
+ * used internally for object placement
+ */
+native Float:CR_PlacementCorrection(modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
+
+/*
  * creates precise vehicle collision
  */
-native CR_CreateVehicleCol(index, vehicleid, modelid, Float:x, Float:y, Float:z, Float:qx, Float:qy, Float:qz, Float:qw);
+native CR_CreateVehicleCol(vehicleid, modelid, Float:x, Float:y, Float:z, Float:qx, Float:qy, Float:qz, Float:qw);
 
 /*
  * deletes the vehicle collision
@@ -434,6 +444,16 @@ native CR_SetVehicleRotation(index, Float:qx, Float:qy, Float:qz, Float:qw);
 native CR_GetVehicleRotation(index, &Float:qx, &Float:qy, &Float:qz, &Float:qw);
 
 /*
+ * returns the vehicle id hooked to the vehicle collision volume
+ */
+native CR_GetVehicleID(index);
+
+/*
+ * returns the model id hooked to the vehicle collision volume
+ */
+native CR_GetVehicleModel(index);
+
+/*
  * verify whether the index is available for creation of collision volume
  */
 native CR_IsVehicleSlotUsed(index);
@@ -442,6 +462,11 @@ native CR_IsVehicleSlotUsed(index);
  * checks whether the vehicle is in contact with any other object/world
  */
 native CR_VehicleContactTest(modelid, Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll);
+
+/*
+ * returns the highest valid vehicle collision id 
+ */
+native CR_GetVehiclePool();
 
 /*
  * sets the tansform of the collision volume and the object passed
@@ -472,18 +497,11 @@ stock CR_UpdateTransform(index)
 }
 
 /*
- * processes all objects and volumes
- */
-stock CR_ProcessItems()
-{
-	for(new i = 0; i <= CR_GetDynamicPool(); i++)
-		CR_UpdateTransform(i);
-}
-
-/*
  * deletes all user created objects hooked with collision volumes
+ * to perform the deletion of vehicles and their collision volumes as well,
+ * set the vehicle parameter to 1
  */
-stock CR_DestroyAllColVolumes()
+stock CR_DestroyAllColVolumes(vehicle = 0)
 {
 	for(new i = 0; i <= CR_GetDynamicPool(); i++)
 	{
@@ -500,6 +518,18 @@ stock CR_DestroyAllColVolumes()
 		{
 			DestroyDynamicObject(CR_GetStaticColObject(i));
 			CR_RemoveStaticCol(i);
+		}
+	}
+
+	if(vehicle)
+	{
+		for(new i = 0; i <= CR_GetStaticPool(); i++)
+		{
+			if(IsValidVehicle(CR_GetVehicleID(i)))
+			{
+				DestroyVehicle(CR_GetVehicleID(i));
+				CR_RemoveVehicleCol(i);
+			}
 		}
 	}
 }
@@ -541,19 +571,20 @@ stock CR_FlushMemory()
 	for(new i = 0; i <= CR_GetStaticPool(); i++)
 		if(IsValidDynamicObject(CR_GetStaticColObject(i)))
 			DestroyDynamicObject(CR_GetStaticColObject(i));
+	for(new i = 0; i <= CR_GetVehiclePool(); i++)
+		if(IsValidVehicle(CR_GetVehicleID(i)))
+			DestroyVehicle(CR_GetVehicleID(i));
 	CR_FreeMemory();
 }
 
 /*
  * Dynamic server-synced Simulation
  */
-forward CR_ProcessSimulation();
-public	CR_ProcessSimulation()
+forward CR_ProcessItems();
+public	CR_ProcessItems()
 {
-	CR_ProcessItems();
-	//cr_newtime = GetTickCount();
-	//CR_Simulator(cr_newtime, cr_oldtime);
-	//cr_oldtime = cr_newtime;
+	for(new i = 0; i <= CR_GetDynamicPool(); i++)
+		CR_UpdateTransform(i);
 }
 
 /*
@@ -585,18 +616,24 @@ public	CR_ProcessSimulation()
 	return 0;
  }
 
- // places an object on the ground, the object must be above the ground
- stock CR_PlaceObjectOnGround(objectid)
+ // places an object on the ground correctly
+ stock CR_PlaceObjectOnGround(objectid, modelid)
  {
-	new Float:x, Float:y, Float:z;
+	new Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll;
+	new Float:minx, Float:miny, Float:minz, Float:maxx, Float:maxy, Float:maxz;
 	GetDynamicObjectPos(objectid, x, y, z);
-	CR_RayCast(x, y, z, x, y, z - 10000000.0, x, y, z);
-	SetDynamicObjectPos(objectid, x, y, z);
+	GetDynamicObjectRot(objectid, roll, pitch, yaw);
+	CR_GetAABB(modelid, x, y, z, yaw, pitch, roll, minx, miny, minz, maxx, maxy, maxz);
+	new Float:dz = floatabs(z - minz);
+	if(CR_RayCast(minx, miny, minz, minx, miny, -1000.0, maxx, maxy, maxz))
+		return SetDynamicObjectPos(objectid, x, y, maxz + dz);
+	return 0;
  }
 
+ // passes the z coordinate for 2D coordinates by reference
  stock CR_FindZ_For2D(Float:x, Float:y, &Float:z)
  {
-	if(CR_RayCast(x, y, 1000.0, x, y, (direction * 10000000.0), x, y, z))
+	if(CR_RayCast(x, y, 1000.0, x, y, -10000000.0, x, y, z))
 		return 1;
 	return 0;
  }
