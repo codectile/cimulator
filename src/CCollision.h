@@ -61,7 +61,6 @@ int cr_readCadb();
 int cr_readCCF();
 void cr_createColVehicle();
 void cr_createColObject();
-void cr_removeVehicleCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* col);
 btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btQuaternion& rotation);
 void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldrest);
 void cr_removeBuilding(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar x, btScalar y, btScalar z, btScalar radius);
@@ -72,7 +71,7 @@ void cr_removeStaticCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObjec
 void cr_deleteColBody(btDiscreteDynamicsWorld* dynamicsWorld, btRigidBody* rigidBody);
 void cr_setCollisionShape(btCollisionObject* rigidBody, int modelid);
 void cr_getBoundingSphere(int modelid, btVector3& center, btScalar &radius);
-void cr_getAABB(int modelid, btVector3& min, btVector3& max);
+void cr_getAABB(int modelid, btVector3& pos, btVector3& rot, btVector3& min, btVector3& max);
 int cr_isCompound(int modelid);
 int cr_getNumChildShapes(int modelid);
 void cr_removeColMap(btDiscreteDynamicsWorld* dynamicsWorld);
