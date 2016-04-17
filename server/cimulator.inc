@@ -617,9 +617,10 @@ public	CR_ProcessItems()
  }
 
  // places an object on the ground correctly
- stock CR_PlaceObjectOnGround(objectid, modelid)
+ stock CR_PlaceObjectOnGround(objectid)
  {
 	new Float:x, Float:y, Float:z, Float:yaw, Float:pitch, Float:roll;
+	new modelid = Streamer_GetIntData(STREAMER_TYPE_OBJECT, objectid, E_STREAMER_MODEL_ID);
 	new Float:minx, Float:miny, Float:minz, Float:maxx, Float:maxy, Float:maxz;
 	GetDynamicObjectPos(objectid, x, y, z);
 	GetDynamicObjectRot(objectid, roll, pitch, yaw);
