@@ -215,11 +215,6 @@ btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWo
 	return collision;
 }
 
-void cr_removeVehicleCol(btDiscreteDynamicsWorld* dynamicsWorld, btCollisionObject* col)
-{
-	dynamicsWorld->removeCollisionObject(col);
-}
-
 void cr_createColObject()
 {
 	static_shapes = new btCompoundShape[20000];
@@ -401,9 +396,14 @@ void cr_getBoundingSphere(int modelid, btVector3& center, btScalar &radius)
 	static_shapes[modelid].getBoundingSphere(center, radius);
 }
 
-void cr_getAABB(int modelid, btVector3& min, btVector3& max)
+void cr_getAABB(int modelid, btVector3& pos, btVector3& rot, btVector3& min, btVector3& max)
 {
-	btTransform transform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
+	btTransform transform;
+	transform.setIdentity();
+	transform.setOrigin(pos);
+	btQuaternion quat;
+	quat.setEuler(rot.getX() * SIMD_DEG_TO_RAD, rot.getY() * SIMD_DEG_TO_RAD, rot.getZ() * SIMD_DEG_TO_RAD);
+	transform.setRotation(quat);
 	static_shapes[modelid].getAabb(transform, min, max);
 }
 
