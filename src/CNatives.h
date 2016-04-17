@@ -22,7 +22,7 @@ subject to the following restrictions:
 #include <vector>
 #include "CCollision.h"
 #include "CDynamics.h"
-#define VERSION	1.07
+#define VERSION	1.09
 #define SAFE_DELETE(pointer)	if(pointer){ delete pointer; pointer = NULL;}
 #define USER_DATA_INT	1
 #define USER_DATA_FLT	2
@@ -47,7 +47,6 @@ unsigned long long GetTickCount()
 #endif // !_WIN32
 
 #define CRMAX_BODY	30000
-#define CRMAX_GHOST	30000
 
 #define INVALIDITY_CHECK(x, y)	if ((x <= -1) && (x >= CRMAX_BODY))	return y
 
@@ -123,6 +122,7 @@ public:
 		index = -1;
 		vehicleid = -1;
 		modelid = -1;
+		dynamicsWorld->removeCollisionObject(col);
 		delete col;
 		col = NULL;
 	}
@@ -153,6 +153,8 @@ static unsigned long long Oldtime = 0;
 bool OnCollisionOccur(btManifoldPoint& cp, void* body0, void* body1);
 int GetEmptyDynamicIndex();
 int GetEmptyStaticIndex();
+int GetEmptyVehicleIndex();
 int GetDynamicPoolSize();
 int GetStaticPoolSize();
+int GetVehiclePoolSize();
 #endif // !CNATIVES_H
