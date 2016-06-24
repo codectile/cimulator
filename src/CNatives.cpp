@@ -35,6 +35,7 @@ cell AMX_NATIVE_CALL CR_Load(AMX* amx, cell* params)
 {
 	unsigned long time = clock->getTimeMilliseconds();
 	cr_objectPlacement(dynamicsWorld, amx_ctof(params[1]));
+	cr_loadWater(dynamicsWorld);
 	logprintf("Time taken to load the collision map: %ims", clock->getTimeMilliseconds() - time);
 	cr_removeRoadBlocks(dynamicsWorld);
 	return 1;
