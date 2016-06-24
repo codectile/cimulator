@@ -63,6 +63,7 @@ void cr_createColVehicle();
 void cr_createColObject();
 btCollisionObject* cr_createVehicleCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btQuaternion& rotation);
 void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldrest);
+void cr_loadWater(btDiscreteDynamicsWorld* dynamicsWorld);
 void cr_removeBuilding(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar x, btScalar y, btScalar z, btScalar radius);
 btCollisionObject* cr_addStaticCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btVector3& position, btVector3& rotatation);
 btRigidBody* cr_addDynamicCollision(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar mass, btVector3& position, btVector3& rotation, int inertia, int state);
