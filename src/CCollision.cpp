@@ -15,7 +15,7 @@ subject to the following restrictions:
 
 #include <fstream>
 #include "CStructures.h"
-#include "btBulletDynamicsCommon.h"
+#include "Water.h"
 #include "CCollision.h"
 #include <vector>
 
@@ -290,6 +290,27 @@ void cr_objectPlacement(btDiscreteDynamicsWorld* dynamicsWorld, btScalar worldre
 		dynamicsWorld->addCollisionObject(colObj);
 		cache_bodies.push_back(colObj);
 	}
+}
+
+void cr_loadWater(btDiscreteDynamicsWorld* dynamicsWorld)
+{
+	btTriangleMesh* trimesh = new btTriangleMesh();
+	btBvhTriangleMeshShape* mesh;
+	for (int f = 0; f < 616; f++)
+	{
+		trimesh->addTriangle(btVector3(btScalar(waterData[f][0]), btScalar(waterData[f][1]), btScalar(waterData[f][2])),
+			btVector3(btScalar(waterData[f][3]), btScalar(waterData[f][4]), btScalar(waterData[f][5])),
+			btVector3(btScalar(waterData[f][6]), btScalar(waterData[f][7]), btScalar(waterData[f][8])));
+	}
+	mesh = new btBvhTriangleMeshShape(trimesh, true);
+
+	btCollisionObject* colObj = new btCollisionObject();
+	colObj->setCollisionShape(mesh);
+	colObj->setCollisionFlags(btCollisionObject::CF_STATIC_OBJECT);
+	colObj->setWorldTransform(btTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
+	colObj->setUserIndex(99999);
+	dynamicsWorld->addCollisionObject(colObj);
+	cache_bodies.push_back(colObj);
 }
 
 void cr_removeBuilding(btDiscreteDynamicsWorld* dynamicsWorld, int modelid, btScalar x, btScalar y, btScalar z, btScalar radius)
